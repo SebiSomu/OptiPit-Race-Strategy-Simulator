@@ -1,0 +1,82 @@
+# --- Dependencies ---
+**/node_modules/
+**/.pnp
+**/.pnp.*
+**/.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# --- Build & Output ---
+**/build/
+**/dist/
+**/out/
+**/.next/
+**/target/
+**/bin/
+**/obj/
+**/.gradle/
+**/out/
+**/.serverless/
+**/artifacts/
+
+# --- Environment & Secrets (CRITICAL for safety) ---
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/p12/
+**/*.pfx
+**/secrets.xml
+**/*.jks
+**/*.keystore
+**/credentials.json
+
+# --- Java / Gradle / Spring ---
+**/HELP.md
+!**/gradle/wrapper/gradle-wrapper.jar
+**/.apt_generated/
+**/.classpath
+**/.factorypath
+**/.project
+**/.settings/
+**/.springBeans
+**/.sts4-cache/
+**/.nb-gradle/
+
+# --- IDEs & Editors ---
+**/.idea/
+**/*.iws
+**/*.iml
+**/*.ipr
+**/.vscode/
+**/.history/
+**/*.swp
+**/*.swo
+
+# --- OS Specific ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- Logs & Temp ---
+**/logs/
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/.pnpm-debug.log*
+**/.vercel
+**/*.tsbuildinfo
+**/tmp/
+**/temp/
+
+# --- Docker ---
+**/docker-compose.override.yml
+**/.docker/
