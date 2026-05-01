@@ -20,6 +20,8 @@ const compoundColors: Record<string, { bg: string; text: string; border: string 
   Soft: { bg: "linear-gradient(135deg, #ff1801, #cc1400)", text: "#fff", border: "#ff1801" },
   Medium: { bg: "linear-gradient(135deg, #ffc906, #dba800)", text: "#1a1a1a", border: "#ffc906" },
   Hard: { bg: "linear-gradient(135deg, #f0f0f0, #d0d0d0)", text: "#1a1a1a", border: "#f0f0f0" },
+  Intermediate: { bg: "linear-gradient(135deg, #43b02a, #2d7a1c)", text: "#fff", border: "#43b02a" },
+  Wet: { bg: "linear-gradient(135deg, #0067ff, #004cbf)", text: "#fff", border: "#0067ff" },
 };
 
 export function StintBar({ stints, totalLaps, pitStopLaps }: StintBarProps) {

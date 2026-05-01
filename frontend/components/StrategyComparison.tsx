@@ -91,11 +91,13 @@ export function StrategyComparison({ strategies, totalLaps }: StrategyComparison
                 >
                   <div
                     className={`w-2 h-2 rounded-full ${
-                      stint.compoundName === "Soft"
-                        ? "bg-[var(--tyre-soft)]"
-                        : stint.compoundName === "Medium"
-                        ? "bg-[var(--tyre-medium)]"
-                        : "bg-[var(--tyre-hard)]"
+                      {
+                        Soft: "bg-[var(--tyre-soft)]",
+                        Medium: "bg-[var(--tyre-medium)]",
+                        Hard: "bg-[var(--tyre-hard)]",
+                        Intermediate: "bg-[#43b02a]",
+                        Wet: "bg-[#0067ff]",
+                      }[stint.compoundName] || "bg-white/30"
                     }`}
                   />
                   <div className="flex-1">

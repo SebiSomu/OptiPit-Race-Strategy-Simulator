@@ -31,8 +31,9 @@ public class TyreCompound {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;                    // Soft / Medium / Hard
+    private String name;                    // Soft / Medium / Hard / Intermediate / Wet
     private Double degradationCoefficient;  // base deg at 35°C (s/lap)
     private Double initialGrip;             // pace advantage vs Medium (s) - positive=faster
     private Double tempSensitivity;         // extra deg per 10°C above nominal (s/lap)
+    private Double wetPerformance;          // 0.0 = slick (full rain penalty), 1.0 = full wet (no rain penalty)
 }

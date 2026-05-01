@@ -44,9 +44,12 @@ public class DataInitializer {
             upsertCircuit(circuitRepository, "yas-marina", "Yas Marina (Abu Dhabi)", 58, 22.0, 86.0, 35.0, 0.010);
 
             // ── Tyre Compounds ──────────────────
-            upsertCompound(tyreCompoundRepository, "Soft", 0.075, 0.50, 0.015);
-            upsertCompound(tyreCompoundRepository, "Medium", 0.045, 0.00, 0.009);
-            upsertCompound(tyreCompoundRepository, "Hard", 0.022, -0.50, 0.005);
+            //                                    name           baseDeg  grip   tempSens  wetPerf
+            upsertCompound(tyreCompoundRepository, "Soft",         0.075,  0.50,  0.015,    0.0);
+            upsertCompound(tyreCompoundRepository, "Medium",       0.045,  0.00,  0.009,    0.0);
+            upsertCompound(tyreCompoundRepository, "Hard",         0.022, -0.50,  0.005,    0.0);
+            upsertCompound(tyreCompoundRepository, "Intermediate", 0.035, -1.50,  0.004,    0.7);
+            upsertCompound(tyreCompoundRepository, "Wet",          0.025, -3.50,  0.002,    1.0);
         };
     }
 
@@ -66,15 +69,17 @@ public class DataInitializer {
         );
     }
 
-    private void upsertCompound(TyreCompoundRepository repo, String name, double baseDeg, double grip, double tempSens) {
+    private void upsertCompound(TyreCompoundRepository repo, String name,
+                                double baseDeg, double grip, double tempSens, double wetPerf) {
         repo.findByName(name).ifPresentOrElse(
                 c -> {
                     c.setDegradationCoefficient(baseDeg);
                     c.setInitialGrip(grip);
                     c.setTempSensitivity(tempSens);
+                    c.setWetPerformance(wetPerf);
                     repo.save(c);
                 },
-                () -> repo.save(new TyreCompound(null, name, baseDeg, grip, tempSens))
+                () -> repo.save(new TyreCompound(null, name, baseDeg, grip, tempSens, wetPerf))
         );
     }
 }

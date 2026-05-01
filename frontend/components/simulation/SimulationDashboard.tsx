@@ -57,6 +57,8 @@ const compoundChartColors: Record<string, string> = {
   Soft: "#ff1801",
   Medium: "#ffc906",
   Hard: "#d0d0d0",
+  Intermediate: "#43b02a",
+  Wet: "#0067ff",
 };
 
 function tempLabel(t: number) {
@@ -73,6 +75,10 @@ export function SimulationDashboard({ initialSlug }: { initialSlug?: string }) {
   const [compounds, setCompounds] = useState<Compound[]>([]);
   const [selectedCircuit, setSelectedCircuit] = useState<Circuit | null>(null);
   const [trackTemp, setTrackTemp] = useState<number>(50);
+  const [windSpeed, setWindSpeed] = useState<number>(0);
+  const [windAngle, setWindAngle] = useState<number>(0);
+  const [airTemp, setAirTemp] = useState<number>(25);
+  const [rainIntensity, setRainIntensity] = useState<number>(0);
   const [strategies, setStrategies] = useState<StrategyData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,8 +117,15 @@ export function SimulationDashboard({ initialSlug }: { initialSlug?: string }) {
     setStrategies([]);
     setSelectedStrategyIdx(0);
     try {
-      const url = `${API_BASE}/strategy/optimal?circuitId=${selectedCircuit.id}&trackTemp=${trackTemp}`;
-      const res = await fetch(url);
+      const params = new URLSearchParams({
+        circuitId: String(selectedCircuit.id),
+        trackTemp: String(trackTemp),
+        windSpeed: String(windSpeed),
+        windAngle: String(windAngle),
+        airTemp: String(airTemp),
+        rainIntensity: String(rainIntensity),
+      });
+      const res = await fetch(`${API_BASE}/strategy/optimal?${params}`);
       if (!res.ok) throw new Error();
       setStrategies(await res.json());
     } catch {
@@ -120,7 +133,7 @@ export function SimulationDashboard({ initialSlug }: { initialSlug?: string }) {
     } finally {
       setLoading(false);
     }
-  }, [selectedCircuit, trackTemp]);
+  }, [selectedCircuit, trackTemp, windSpeed, windAngle, airTemp, rainIntensity]);
 
   const handleCircuitChange = (newId: string) => {
     const c = circuits.find((c) => c.id === Number(newId));
@@ -194,29 +207,104 @@ export function SimulationDashboard({ initialSlug }: { initialSlug?: string }) {
               </span>
             </div>
 
-            {/* Temperature slider */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <label className="text-sm text-white/60">Track Temperature</label>
-                <span className="text-sm font-bold text-white font-mono">{trackTemp}°C</span>
+            <div className="space-y-4">
+              {/* Track Temperature */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-white/50">Track Temperature</label>
+                  <span className="text-xs font-bold text-white font-mono">{trackTemp}°C</span>
+                </div>
+                <input
+                  type="range" min={20} max={65} step={1} value={trackTemp}
+                  onChange={(e) => setTrackTemp(Number(e.target.value))}
+                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #3b82f6 0%, #ef4444 ${((trackTemp - 20) / 45) * 100}%, rgba(255,255,255,0.1) ${((trackTemp - 20) / 45) * 100}%)`,
+                  }}
+                />
               </div>
-              <input
-                type="range" min={20} max={65} step={1} value={trackTemp}
-                onChange={(e) => setTrackTemp(Number(e.target.value))}
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                style={{
-                  background: `linear-gradient(to right, #3b82f6 0%, #ef4444 ${((trackTemp - 20) / 45) * 100}%, rgba(255,255,255,0.1) ${((trackTemp - 20) / 45) * 100}%)`,
-                }}
-              />
-              <div className="flex justify-between text-[10px] text-white/25">
-                <span>20°C (Cool)</span>
-                <span>35°C (Std)</span>
-                <span>50°C (Hot)</span>
-                <span>65°C (Extreme)</span>
+
+              {/* Air Temperature */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-white/50">Air Temperature</label>
+                  <span className="text-xs font-bold text-white font-mono">{airTemp}°C</span>
+                </div>
+                <input
+                  type="range" min={10} max={45} step={1} value={airTemp}
+                  onChange={(e) => setAirTemp(Number(e.target.value))}
+                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #60a5fa 0%, #f97316 ${((airTemp - 10) / 35) * 100}%, rgba(255,255,255,0.1) ${((airTemp - 10) / 35) * 100}%)`,
+                  }}
+                />
               </div>
-              <p className="text-[10px] text-white/30 mt-1">
-                Higher temp → more Soft degradation → shorter stints → 2-stop more likely
-              </p>
+
+              <div className="border-t border-white/5 pt-3" />
+
+              {/* Wind Speed */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-white/50">Wind Speed</label>
+                  <span className="text-xs font-bold text-white font-mono">{windSpeed} km/h</span>
+                </div>
+                <input
+                  type="range" min={0} max={60} step={1} value={windSpeed}
+                  onChange={(e) => setWindSpeed(Number(e.target.value))}
+                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #22c55e 0%, #eab308 ${(windSpeed / 60) * 100}%, rgba(255,255,255,0.1) ${(windSpeed / 60) * 100}%)`,
+                  }}
+                />
+              </div>
+
+              {/* Wind Direction */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-white/50">Wind Direction</label>
+                  <span className="text-xs font-bold text-white font-mono">
+                    {windAngle === 0 ? "Headwind" : windAngle === 180 ? "Tailwind" : windAngle < 90 ? "Head-Cross" : "Tail-Cross"}
+                  </span>
+                </div>
+                <input
+                  type="range" min={0} max={180} step={15} value={windAngle}
+                  onChange={(e) => setWindAngle(Number(e.target.value))}
+                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-white/10"
+                />
+                <div className="flex justify-between text-[9px] text-white/20">
+                  <span>Headwind (0°)</span>
+                  <span>Crosswind (90°)</span>
+                  <span>Tailwind (180°)</span>
+                </div>
+              </div>
+
+              <div className="border-t border-white/5 pt-3" />
+
+              {/* Rain Intensity */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-white/50">Rain Intensity</label>
+                  <span className={`text-xs font-bold font-mono ${
+                    rainIntensity === 0 ? "text-green-400" :
+                    rainIntensity <= 0.3 ? "text-blue-300" :
+                    rainIntensity <= 0.6 ? "text-blue-400" :
+                    "text-blue-500"
+                  }`}>
+                    {rainIntensity === 0 ? "DRY" : rainIntensity <= 0.3 ? "LIGHT" : rainIntensity <= 0.6 ? "MODERATE" : "HEAVY"}
+                  </span>
+                </div>
+                <input
+                  type="range" min={0} max={1} step={0.05} value={rainIntensity}
+                  onChange={(e) => setRainIntensity(Number(e.target.value))}
+                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #22c55e 0%, #3b82f6 ${rainIntensity * 100}%, rgba(255,255,255,0.1) ${rainIntensity * 100}%)`,
+                  }}
+                />
+                <p className="text-[9px] text-white/20">
+                  Rain increases tyre degradation and reduces grip significantly
+                </p>
+              </div>
             </div>
           </div>
 

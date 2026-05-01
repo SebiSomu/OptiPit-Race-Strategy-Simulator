@@ -40,21 +40,30 @@ public class StrategyController {
 
     /**
      * Calculates all viable strategies sorted by total race time.
+     * Physics 3.0: supports weather parameters.
      *
-     * @param circuitId  required
-     * @param trackTemp  optional — overrides circuit's nominal track temperature (°C).
-     *                   Use this to simulate hotter/cooler/wetter conditions.
+     * @param circuitId      required
+     * @param trackTemp      optional — overrides circuit's nominal track temperature (°C)
+     * @param windSpeed      optional — wind speed in km/h (default: 0)
+     * @param windAngle      optional — wind direction: 0°=headwind, 180°=tailwind (default: 0)
+     * @param airTemp        optional — air temperature in °C (default: 25)
+     * @param rainIntensity  optional — 0.0 (dry) to 1.0 (heavy rain) (default: 0)
      */
     @GetMapping("/strategy/optimal")
     public List<StrategyResult> getOptimalStrategies(
             @RequestParam Long circuitId,
-            @RequestParam(required = false) Double trackTemp) {
+            @RequestParam(required = false) Double trackTemp,
+            @RequestParam(required = false) Double windSpeed,
+            @RequestParam(required = false) Double windAngle,
+            @RequestParam(required = false) Double airTemp,
+            @RequestParam(required = false) Double rainIntensity) {
 
         Circuit circuit = circuitRepository.findById(circuitId)
                 .orElseThrow(() -> new RuntimeException("Circuit not found: " + circuitId));
         List<TyreCompound> compounds = tyreCompoundRepository.findAll();
 
-        return strategyOptimizer.findOptimalStrategies(circuit, compounds, trackTemp);
+        return strategyOptimizer.findOptimalStrategies(circuit, compounds,
+                trackTemp, windSpeed, windAngle, airTemp, rainIntensity);
     }
 
     /** Legacy 1-stop endpoint (backward compatibility). */
