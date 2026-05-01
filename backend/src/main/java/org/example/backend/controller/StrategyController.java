@@ -26,38 +26,38 @@ public class StrategyController {
     @Autowired
     private TyreCompoundRepository tyreCompoundRepository;
 
-    /**
-     * Returns all available circuits.
-     */
+    /** Returns all circuits. */
     @GetMapping("/circuits")
     public List<Circuit> getCircuits() {
         return circuitRepository.findAll();
     }
 
-    /**
-     * Returns all available tyre compounds.
-     */
+    /** Returns all tyre compounds. */
     @GetMapping("/compounds")
     public List<TyreCompound> getCompounds() {
         return tyreCompoundRepository.findAll();
     }
 
     /**
-     * Calculates optimal strategies (1-stop, 2-stop, 3-stop) for a given circuit,
-     * ranked by total race time.
+     * Calculates all viable strategies sorted by total race time.
+     *
+     * @param circuitId  required
+     * @param trackTemp  optional — overrides circuit's nominal track temperature (°C).
+     *                   Use this to simulate hotter/cooler/wetter conditions.
      */
     @GetMapping("/strategy/optimal")
-    public List<StrategyResult> getOptimalStrategies(@RequestParam Long circuitId) {
+    public List<StrategyResult> getOptimalStrategies(
+            @RequestParam Long circuitId,
+            @RequestParam(required = false) Double trackTemp) {
+
         Circuit circuit = circuitRepository.findById(circuitId)
-                .orElseThrow(() -> new RuntimeException("Circuit not found with ID: " + circuitId));
+                .orElseThrow(() -> new RuntimeException("Circuit not found: " + circuitId));
         List<TyreCompound> compounds = tyreCompoundRepository.findAll();
 
-        return strategyOptimizer.findOptimalStrategies(circuit, compounds);
+        return strategyOptimizer.findOptimalStrategies(circuit, compounds, trackTemp);
     }
 
-    /**
-     * Legacy endpoint: calculates a single 1-stop strategy for two specific compounds.
-     */
+    /** Legacy 1-stop endpoint (backward compatibility). */
     @GetMapping("/strategy/calculate")
     public RaceStrategy calculate(
             @RequestParam Long circuitId,
@@ -65,11 +65,11 @@ public class StrategyController {
             @RequestParam Long compound2Id) {
 
         Circuit circuit = circuitRepository.findById(circuitId)
-                .orElseThrow(() -> new RuntimeException("Circuit not found with ID: " + circuitId));
+                .orElseThrow(() -> new RuntimeException("Circuit not found: " + circuitId));
         TyreCompound c1 = tyreCompoundRepository.findById(compound1Id)
-                .orElseThrow(() -> new RuntimeException("Compound 1 not found with ID: " + compound1Id));
+                .orElseThrow(() -> new RuntimeException("Compound not found: " + compound1Id));
         TyreCompound c2 = tyreCompoundRepository.findById(compound2Id)
-                .orElseThrow(() -> new RuntimeException("Compound 2 not found with ID: " + compound2Id));
+                .orElseThrow(() -> new RuntimeException("Compound not found: " + compound2Id));
 
         return strategyOptimizer.optimizeOneStop(circuit, c1, c2);
     }
