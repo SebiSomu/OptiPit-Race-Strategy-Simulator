@@ -2,6 +2,7 @@
 
 import React from "react";
 import { StintBar } from "./StintBar";
+import { formatF1Time, formatF1Delta } from "@/utils/format";
 
 interface StintData {
   compoundName: string;
@@ -22,17 +23,6 @@ interface StrategyData {
 interface StrategyComparisonProps {
   strategies: StrategyData[];
   totalLaps: number;
-}
-
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = (seconds % 60).toFixed(3);
-  return `${mins}:${parseFloat(secs) < 10 ? "0" : ""}${secs}`;
-}
-
-function formatDelta(seconds: number): string {
-  if (seconds === 0) return "OPTIMAL";
-  return `+${seconds.toFixed(3)}s`;
 }
 
 export function StrategyComparison({ strategies, totalLaps }: StrategyComparisonProps) {
@@ -73,14 +63,14 @@ export function StrategyComparison({ strategies, totalLaps }: StrategyComparison
 
               <div className="text-right">
                 <div className="text-lg font-mono font-bold text-white">
-                  {formatTime(strategy.totalTime)}
+                  {formatF1Time(strategy.totalTime)}
                 </div>
                 <div
                   className={`text-xs font-bold uppercase tracking-wider ${
                     isOptimal ? "text-[var(--f1-red)]" : "text-white/30"
                   }`}
                 >
-                  {formatDelta(strategy.deltaToOptimal)}
+                  {formatF1Delta(strategy.deltaToOptimal)}
                 </div>
               </div>
             </div>
@@ -117,7 +107,7 @@ export function StrategyComparison({ strategies, totalLaps }: StrategyComparison
                     </span>
                   </div>
                   <span className="text-xs font-mono text-white/40">
-                    {formatTime(stint.stintTime)}
+                    {formatF1Time(stint.stintTime)}
                   </span>
                 </div>
               ))}

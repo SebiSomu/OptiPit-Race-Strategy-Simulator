@@ -1,7 +1,10 @@
+import { use } from "react";
 import { Navbar } from "@/components/Navbar";
 import { SimulationDashboard } from "@/components/simulation/SimulationDashboard";
 
-export default function SimulationPage() {
+export default function DynamicSimulationPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
+
   return (
     <div className="min-h-screen bg-[var(--f1-dark)]">
       <Navbar />
@@ -13,12 +16,12 @@ export default function SimulationPage() {
             Opti<span className="text-[var(--f1-red)]">Pit</span> Simulator
           </h1>
         </div>
-        <p className="text-white/40 text-sm ml-4 pl-1">
-          Select a circuit to start calculating optimal strategies.
+        <p className="text-white/40 text-sm ml-4 pl-1 uppercase tracking-widest font-bold">
+           Mission Control · Dynamic Mode
         </p>
       </div>
 
-      <SimulationDashboard />
+      <SimulationDashboard initialSlug={slug} />
     </div>
   );
 }

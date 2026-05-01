@@ -29,6 +29,7 @@ public class Circuit {
     private Long id;
 
     private String name;
+    private String slug;
     private Integer laps;
     private Double pitStopLoss;            // pit stop time loss in seconds
     private Double baseLapTime;            // baseline race lap time in seconds

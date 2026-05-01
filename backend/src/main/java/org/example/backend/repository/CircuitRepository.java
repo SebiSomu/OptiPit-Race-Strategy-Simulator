@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface CircuitRepository extends JpaRepository<Circuit, Long> {
     Optional<Circuit> findByName(String name);
+    Optional<Circuit> findBySlug(String slug);
 }
