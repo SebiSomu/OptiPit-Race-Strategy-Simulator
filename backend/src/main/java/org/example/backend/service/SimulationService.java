@@ -53,6 +53,16 @@ public class SimulationService {
     private static final double WARMUP_BASE_PENALTY = 0.5;   // base cold tyre penalty
     private static final double WARMUP_SENSITIVITY = 20.0; // multiplier for temp sensitivity
 
+    // ── Short stint penalty constants (smooth linear model) ─────────────────
+    private static final int OPTIMAL_STINT_LENGTH = 12;      // optimal stint length (laps)
+    private static final double SHORT_STINT_PENALTY_RATE = 0.05; // +5% penalty per lap under optimal
+
+    // ── Out-lap penalty (cold tyres after pit stop) ─────────────────────────
+    private static final double OUT_LAP_BASE_PENALTY = 0.8;  // base penalty for first lap after pit (s)
+    private static final double OUT_LAP_SOFT_FACTOR = 1.125; // Soft = 0.9s (high degradation = more heat needed)
+    private static final double OUT_LAP_MEDIUM_FACTOR = 0.875; // Medium = 0.7s
+    private static final double OUT_LAP_HARD_FACTOR = 0.625; // Hard = 0.5s (low degradation = quick warmup)
+
     // ── Driving modes ────────────────────────────────────────────────────
     public enum DrivingMode {
         CONSERVATIVE(0.5, 1.0),   // 50% pace, normal degradation
@@ -253,6 +263,22 @@ public class SimulationService {
                     windSpeed, windAngle, airTemp, rainIntensity, wetPerformance,
                     drivingMode, totalRaceLaps);
         }
+
+        // ── Smooth stint length penalty for Soft and Medium compounds ──
+        // Stints shorter than optimal length get progressive degradation penalty
+        // Formula: 8 laps = +20%, 11 laps = +5%, 12+ laps = 0%
+        double stintLengthPenalty = (stintLaps < OPTIMAL_STINT_LENGTH)
+            ? (1.0 + (OPTIMAL_STINT_LENGTH - stintLaps) * SHORT_STINT_PENALTY_RATE)
+            : 1.0;
+        if (baseDeg > 0.07) {
+            // Soft compound - full penalty
+            total *= stintLengthPenalty;
+        } else if (baseDeg > 0.035) {
+            // Medium compound - half penalty (e.g., 8 laps = +10%, 11 laps = +2.5%)
+            double mediumPenalty = 1.0 + (stintLengthPenalty - 1.0) * 0.5;
+            total *= mediumPenalty;
+        }
+
         return total;
     }
 
@@ -340,5 +366,24 @@ public class SimulationService {
             case VSC -> baseLapTime + VSC_PACE_PENALTY;
             case NONE -> baseLapTime;
         };
+    }
+
+    /**
+     * Calculates the out-lap penalty for cold tyres after a pit stop.
+     * First lap out of the pits is slower due to cold tyres and caution.
+     *
+     * @param baseDeg compound degradation coefficient (used to identify compound type)
+     * @return penalty in seconds to add to the first lap after pit stop
+     */
+    public double calculateOutLapPenalty(double baseDeg) {
+        double factor;
+        if (baseDeg > 0.07) {
+            factor = OUT_LAP_SOFT_FACTOR;      // Soft: ~0.9s penalty
+        } else if (baseDeg > 0.035) {
+            factor = OUT_LAP_MEDIUM_FACTOR;    // Medium: ~0.7s penalty
+        } else {
+            factor = OUT_LAP_HARD_FACTOR;      // Hard: ~0.5s penalty
+        }
+        return OUT_LAP_BASE_PENALTY * factor;
     }
 }

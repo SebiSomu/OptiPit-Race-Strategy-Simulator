@@ -49,8 +49,11 @@ public class StrategyController {
                 .orElseThrow(() -> new RuntimeException("Circuit not found: " + circuitId));
         List<TyreCompound> compounds = tyreCompoundRepository.findAll();
 
-        return strategyOptimizer.findOptimalStrategies(circuit, compounds,
+        List<StrategyResult> results = strategyOptimizer.findOptimalStrategies(circuit, compounds,
                 trackTemp, windSpeed, windAngle, airTemp, rainIntensity);
+
+        // Limit to max 20 strategies to prevent UI overcrowding
+        return results.size() > 20 ? results.subList(0, 20) : results;
     }
 
     @GetMapping("/strategy/calculate")
