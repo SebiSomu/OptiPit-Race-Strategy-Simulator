@@ -9,10 +9,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "F1 Race Strategy Simulator | Real-Time Pit Stop Optimizer",
+  title: "OptiPit | Advanced F1 Race Strategy Simulator",
   description:
-    "Advanced Formula 1 race strategy simulator. Calculate optimal pit stop windows, tyre compound strategies, and race pace for the Miami International Autodrome.",
-  keywords: ["F1", "Formula 1", "race strategy", "pit stop", "tyre strategy", "Miami GP", "simulator"],
+    "Professional-grade Formula 1 race strategy engine. Calculate optimal pit stop windows, tyre strategies, and race pace for the entire 2026 calendar.",
+  keywords: ["F1", "Formula 1", "OptiPit", "race strategy", "pit stop", "tyre strategy", "2026 calendar", "simulator"],
 };
 
 export default function RootLayout({

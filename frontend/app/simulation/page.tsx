@@ -129,11 +129,11 @@ export default function SimulationPage() {
         <div className="flex items-center gap-3 mb-1">
           <div className="w-1 h-8 bg-[var(--f1-red)] rounded-full" />
           <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">
-            Strategy Simulator
+            Opti<span className="text-[var(--f1-red)]">Pit</span> Simulator
           </h1>
         </div>
         <p className="text-white/40 text-sm ml-4 pl-1">
-          Physics-based tyre model · temperature-aware degradation · all compound combinations
+          Physics 2.0 Engine · Full 2026 Season Calendar · Professional Grade
         </p>
       </div>
 

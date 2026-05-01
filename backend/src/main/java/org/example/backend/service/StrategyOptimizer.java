@@ -289,17 +289,21 @@ public class StrategyOptimizer {
 
         for (int pit = 1; pit < totalLaps; pit++) {
             double t1 = simulationService.calculateStintTime(circuit.getBaseLapTime(),
-                    compound1.getDegradationCoefficient(), compound1.getInitialGrip(), pit);
+                    compound1.getDegradationCoefficient(), compound1.getTempSensitivity(), compound1.getInitialGrip(),
+                    pit, 1, trackTemp, circuit.getTrackEvolutionPerLap());
             double t2 = simulationService.calculateStintTime(circuit.getBaseLapTime(),
-                    compound2.getDegradationCoefficient(), compound2.getInitialGrip(), totalLaps - pit);
+                    compound2.getDegradationCoefficient(), compound2.getTempSensitivity(), compound2.getInitialGrip(),
+                    totalLaps - pit, pit + 1, trackTemp, circuit.getTrackEvolutionPerLap());
             double total = t1 + t2 + circuit.getPitStopLoss();
             if (total < bestTime) { bestTime = total; bestPitLap = pit; bestC1 = compound1; bestC2 = compound2; }
         }
         for (int pit = 1; pit < totalLaps; pit++) {
             double t1 = simulationService.calculateStintTime(circuit.getBaseLapTime(),
-                    compound2.getDegradationCoefficient(), compound2.getInitialGrip(), pit);
+                    compound2.getDegradationCoefficient(), compound2.getTempSensitivity(), compound2.getInitialGrip(),
+                    pit, 1, trackTemp, circuit.getTrackEvolutionPerLap());
             double t2 = simulationService.calculateStintTime(circuit.getBaseLapTime(),
-                    compound1.getDegradationCoefficient(), compound1.getInitialGrip(), totalLaps - pit);
+                    compound1.getDegradationCoefficient(), compound1.getTempSensitivity(), compound1.getInitialGrip(),
+                    totalLaps - pit, pit + 1, trackTemp, circuit.getTrackEvolutionPerLap());
             double total = t1 + t2 + circuit.getPitStopLoss();
             if (total < bestTime) { bestTime = total; bestPitLap = pit; bestC1 = compound2; bestC2 = compound1; }
         }

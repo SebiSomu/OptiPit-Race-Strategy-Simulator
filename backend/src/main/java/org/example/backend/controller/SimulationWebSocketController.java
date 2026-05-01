@@ -29,7 +29,7 @@ public class SimulationWebSocketController {
 
     /**
      * Starts a live race simulation and sends updates lap-by-lap.
-     * Expected payload: { "circuitId": 1, "compoundId": 1 }
+     * Uses Physics 2.0 (Temperature, Evolution, Fuel).
      */
     @MessageMapping("/start-simulation")
     public void startSimulation(Map<String, Long> params) {
@@ -44,30 +44,28 @@ public class SimulationWebSocketController {
         new Thread(() -> {
             try {
                 for (int lap = 1; lap <= circuit.getLaps(); lap++) {
+                    // Using the new realistic 8-parameter formula
                     double lapTime = simulationService.calculateLapTime(
                             circuit.getBaseLapTime(),
                             compound.getDegradationCoefficient(),
+                            compound.getTempSensitivity(),
                             compound.getInitialGrip(),
-                            lap);
+                            lap,        // lapOnTyre
+                            lap,        // globalLap
+                            circuit.getTrackTempNominal(),
+                            circuit.getTrackEvolutionPerLap()
+                    );
 
                     messagingTemplate.convertAndSend("/topic/race-updates", (Object) Map.of(
                             "lap", lap,
-                            "lapTime", lapTime,
+                            "lapTime", Math.round(lapTime * 1000.0) / 1000.0,
                             "compound", compound.getName(),
                             "circuit", circuit.getName()));
 
-                    Thread.sleep(500);
+                    Thread.sleep(300); // Live speed simulation
                 }
-
-                messagingTemplate.convertAndSend("/topic/race-updates", (Object) Map.of("status", "FINISHED"));
-
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                messagingTemplate.convertAndSend("/topic/race-updates",
-                        (Object) Map.of("status", "ERROR", "message", "Simulation interrupted"));
-            } catch (Exception e) {
-                messagingTemplate.convertAndSend("/topic/race-updates",
-                        (Object) Map.of("status", "ERROR", "message", e.getMessage()));
             }
         }).start();
     }

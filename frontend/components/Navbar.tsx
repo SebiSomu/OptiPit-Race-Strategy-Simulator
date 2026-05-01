@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -23,20 +24,23 @@ export function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="relative">
-            <div className="w-9 h-9 bg-[var(--f1-red)] rounded-sm flex items-center justify-center font-black text-white text-sm tracking-tighter rotate-[-2deg] group-hover:rotate-0 transition-transform duration-300">
-              F1
-            </div>
-            <div className="absolute -inset-1 bg-[var(--f1-red)] rounded-sm opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-300" />
+        {/* Logo / Brand */}
+        <Link href="/" className="flex items-center gap-4 group">
+          <div className="relative w-18 h-18 transition-transform duration-500 group-hover:scale-110">
+             <Image 
+                src="/assets/logo.png" 
+                alt="OptiPit Logo" 
+                fill
+                className="object-contain"
+             />
+             <div className="absolute -inset-2 bg-[var(--f1-red)] rounded-full opacity-0 group-hover:opacity-10 blur-xl transition-opacity duration-500" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold tracking-widest uppercase text-white/90">
-              Strategy
+            <span className="text-xl font-black tracking-tighter uppercase text-white group-hover:text-[var(--f1-red)] transition-colors">
+              Opti<span className="text-white">Pit</span>
             </span>
-            <span className="text-[10px] font-medium tracking-[0.2em] uppercase text-white/40">
-              Simulator
+            <span className="text-[9px] font-bold tracking-[0.3em] uppercase text-white/30 -mt-1 ml-0.5">
+              F1 Strategy Engine
             </span>
           </div>
         </Link>
@@ -47,7 +51,7 @@ export function Navbar() {
             Home
           </NavLink>
           <NavLink href="/simulation" active={pathname === "/simulation"}>
-            Simulator
+            Simulation
           </NavLink>
         </div>
       </div>

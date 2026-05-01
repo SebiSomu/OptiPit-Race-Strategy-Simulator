@@ -8,98 +8,69 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Seeds/updates all master data on startup.
- *
- * === TYRE COMPOUND DATA (Pirelli 2024 realistic base values at 35°C standard) ===
- *
- *  Soft (C4):
- *    paceAdvantage    = +0.30s vs Medium (fastest in qualifying trim)
- *    baseDeg          = 0.040 s/lap at 35°C
- *    tempSensitivity  = 0.010 s/lap per 10°C  → very sensitive to heat
- *    Miami (50°C) effective deg: 0.040 + 0.015 = 0.055 s/lap
- *
- *  Medium (C3):
- *    paceAdvantage    = 0.00s (baseline)
- *    baseDeg          = 0.025 s/lap at 35°C
- *    tempSensitivity  = 0.007 s/lap per 10°C
- *    Miami effective deg: 0.025 + 0.0105 = 0.036 s/lap
- *
- *  Hard (C2):
- *    paceAdvantage    = −0.40s vs Medium (slower initially)
- *    baseDeg          = 0.011 s/lap at 35°C  → extremely durable
- *    tempSensitivity  = 0.004 s/lap per 10°C
- *    Miami effective deg: 0.011 + 0.006 = 0.017 s/lap
- *
- * === CIRCUIT: Miami International Autodrome ===
- *  Laps: 57, Pit stop loss: 21s, Base lap time: 92s
- *  Track temp nominal: 50°C (May in Miami, very hot surface)
- *  Track evolution: 0.010 s/lap (smooth asphalt rubbers in steadily)
- */
 @Configuration
 public class DataInitializer {
 
     @Bean
     CommandLineRunner initData(CircuitRepository circuitRepository,
-                               TyreCompoundRepository tyreCompoundRepository) {
+            TyreCompoundRepository tyreCompoundRepository) {
         return args -> {
 
-            // ── Circuit ──────────────────────────────────────────────────────
-            upsertCircuit(circuitRepository,
-                    "Miami International Autodrome",
-                    57,       // race laps
-                    21.0,     // pit stop time loss (s)
-                    92.0,     // baseline race lap time (s)
-                    50.0,     // track temp nominal (°C)
-                    0.010     // track evolution per lap (s)
-            );
+            // ── Circuits 2026 Calendar ──────────────────────────────────────
+            upsertCircuit(circuitRepository, "Miami International Autodrome", 57, 21.0, 92.0, 50.0, 0.010);
+            upsertCircuit(circuitRepository, "Bahrain (Sakhir)", 57, 22.0, 93.0, 42.0, 0.012);
+            upsertCircuit(circuitRepository, "Jeddah Corniche Circuit", 50, 20.0, 90.0, 38.0, 0.008);
+            upsertCircuit(circuitRepository, "Melbourne (Albert Park)", 58, 20.0, 78.0, 34.0, 0.011);
+            upsertCircuit(circuitRepository, "Suzuka Circuit", 53, 22.0, 91.0, 32.0, 0.014);
+            upsertCircuit(circuitRepository, "Shanghai International Circuit", 56, 23.0, 95.0, 35.0, 0.010);
+            upsertCircuit(circuitRepository, "Monaco (Monte Carlo)", 78, 25.0, 74.0, 30.0, 0.005);
+            upsertCircuit(circuitRepository, "Montreal (Gilles Villeneuve)", 70, 18.0, 73.0, 36.0, 0.009);
+            upsertCircuit(circuitRepository, "Barcelona (Catalunya)", 66, 22.0, 76.0, 45.0, 0.013);
+            upsertCircuit(circuitRepository, "Red Bull Ring (Spielberg)", 71, 20.0, 68.0, 40.0, 0.010);
+            upsertCircuit(circuitRepository, "Silverstone Circuit", 52, 20.0, 89.0, 28.0, 0.015);
+            upsertCircuit(circuitRepository, "Hungaroring (Budapest)", 70, 20.0, 79.0, 52.0, 0.012);
+            upsertCircuit(circuitRepository, "Spa-Francorchamps", 44, 21.0, 105.0, 25.0, 0.011);
+            upsertCircuit(circuitRepository, "Zandvoort (Circuit Park)", 72, 19.0, 72.0, 32.0, 0.010);
+            upsertCircuit(circuitRepository, "Monza (Autodromo Nazionale)", 53, 23.0, 81.0, 48.0, 0.009);
+            upsertCircuit(circuitRepository, "Baku City Circuit", 51, 21.0, 103.0, 44.0, 0.008);
+            upsertCircuit(circuitRepository, "Singapore (Marina Bay)", 62, 28.0, 100.0, 32.0, 0.007);
+            upsertCircuit(circuitRepository, "Austin (COTA)", 56, 20.0, 98.0, 46.0, 0.012);
+            upsertCircuit(circuitRepository, "Mexico City (Hermanos Rodriguez)", 71, 21.0, 79.0, 42.0, 0.010);
+            upsertCircuit(circuitRepository, "Interlagos (Sao Paulo)", 71, 18.0, 70.0, 38.0, 0.011);
+            upsertCircuit(circuitRepository, "Las Vegas Strip Circuit", 50, 20.0, 93.0, 18.0, 0.006);
+            upsertCircuit(circuitRepository, "Lusail International Circuit", 57, 23.0, 84.0, 44.0, 0.013);
+            upsertCircuit(circuitRepository, "Yas Marina (Abu Dhabi)", 58, 22.0, 86.0, 35.0, 0.010);
 
-            // ── Tyre Compounds (always sync to latest calibrated values) ─────
-            upsertCompound(tyreCompoundRepository,
-                    "Soft",
-                    0.075,   // baseDeg at 35°C (was 0.040)
-                    0.50,    // paceAdvantage vs Medium (was 0.30)
-                    0.015);  // tempSensitivity (was 0.010)
-
-            upsertCompound(tyreCompoundRepository,
-                    "Medium",
-                    0.045,   // baseDeg (was 0.025)
-                    0.00,    // paceAdvantage (baseline)
-                    0.009);  // tempSensitivity (was 0.007)
-
-            upsertCompound(tyreCompoundRepository,
-                    "Hard",
-                    0.022,   // baseDeg (was 0.011)
-                    -0.50,   // paceAdvantage (was -0.40)
-                    0.005);  // tempSensitivity (was 0.004)
+            // ── Tyre Compounds (calibrated for Physics 2.0) ──────────────────
+            upsertCompound(tyreCompoundRepository, "Soft", 0.075, 0.50, 0.015);
+            upsertCompound(tyreCompoundRepository, "Medium", 0.045, 0.00, 0.009);
+            upsertCompound(tyreCompoundRepository, "Hard", 0.022, -0.50, 0.005);
         };
     }
 
-    private void upsertCircuit(CircuitRepository repo,
-                               String name, int laps, double pitLoss, double baseLap, double temp, double evo) {
+    private void upsertCircuit(CircuitRepository repo, String name, int laps, double pitLoss,
+            double baseLap, double temp, double evo) {
         repo.findByName(name).ifPresentOrElse(
-                circuit -> {
-                    circuit.setLaps(laps);
-                    circuit.setPitStopLoss(pitLoss);
-                    circuit.setBaseLapTime(baseLap);
-                    circuit.setTrackTempNominal(temp);
-                    circuit.setTrackEvolutionPerLap(evo);
-                    repo.save(circuit);
+                c -> {
+                    c.setLaps(laps);
+                    c.setPitStopLoss(pitLoss);
+                    c.setBaseLapTime(baseLap);
+                    c.setTrackTempNominal(temp);
+                    c.setTrackEvolutionPerLap(evo);
+                    repo.save(c);
                 },
-                () -> repo.save(new Circuit(null, name, laps, pitLoss, baseLap, temp, evo))
-        );
+                () -> repo.save(new Circuit(null, name, laps, pitLoss, baseLap, temp, evo)));
     }
 
-    private void upsertCompound(TyreCompoundRepository repo,
-                                 String name, double baseDeg, double grip, double tempSens) {
+    private void upsertCompound(TyreCompoundRepository repo, String name, double baseDeg, double grip,
+            double tempSens) {
         repo.findByName(name).ifPresentOrElse(
-                compound -> {
-                    compound.setDegradationCoefficient(baseDeg);
-                    compound.setInitialGrip(grip);
-                    compound.setTempSensitivity(tempSens);
-                    repo.save(compound);
+                c -> {
+                    c.setDegradationCoefficient(baseDeg);
+                    c.setInitialGrip(grip);
+                    c.setTempSensitivity(tempSens);
+                    repo.save(c);
                 },
-                () -> repo.save(new TyreCompound(null, name, baseDeg, grip, tempSens))
-        );
+                () -> repo.save(new TyreCompound(null, name, baseDeg, grip, tempSens)));
     }
 }
