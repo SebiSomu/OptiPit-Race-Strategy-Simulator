@@ -18,43 +18,14 @@ public class StintDetail {
         this.stintTime = stintTime;
     }
 
-    public String getCompoundName() {
-        return compoundName;
-    }
-
-    public void setCompoundName(String compoundName) {
-        this.compoundName = compoundName;
-    }
-
-    public int getStartLap() {
-        return startLap;
-    }
-
-    public void setStartLap(int startLap) {
-        this.startLap = startLap;
-    }
-
-    public int getEndLap() {
-        return endLap;
-    }
-
-    public void setEndLap(int endLap) {
-        this.endLap = endLap;
-    }
-
-    public int getLapsDuration() {
-        return lapsDuration;
-    }
-
-    public void setLapsDuration(int lapsDuration) {
-        this.lapsDuration = lapsDuration;
-    }
-
-    public double getStintTime() {
-        return stintTime;
-    }
-
-    public void setStintTime(double stintTime) {
-        this.stintTime = stintTime;
-    }
+    public String getCompoundName() { return compoundName; }
+    public void setCompoundName(String compoundName) { this.compoundName = compoundName; }
+    public int getStartLap() { return startLap; }
+    public void setStartLap(int startLap) { this.startLap = startLap; }
+    public int getEndLap() { return endLap; }
+    public void setEndLap(int endLap) { this.endLap = endLap; }
+    public int getLapsDuration() { return lapsDuration; }
+    public void setLapsDuration(int lapsDuration) { this.lapsDuration = lapsDuration; }
+    public double getStintTime() { return stintTime; }
+    public void setStintTime(double stintTime) { this.stintTime = stintTime; }
 }

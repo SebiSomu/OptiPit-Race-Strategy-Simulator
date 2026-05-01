@@ -54,16 +54,32 @@ public class StrategyOptimizer {
         double rain = (rainIntensity != null) ? rainIntensity : 0.0;
         int totalLaps = circuit.getLaps();
 
-        double[][][] precomputed = precomputeStintTimes(circuit, compounds, totalLaps,
+        // Filter compounds based on rain conditions
+        List<TyreCompound> usableCompounds = compounds.stream()
+                .filter(c -> {
+                    double wetPerf = c.getWetPerformance() != null ? c.getWetPerformance() : 0.0;
+                    // In dry conditions, exclude wet tyres (Intermediate and Wet)
+                    if (rain == 0.0) {
+                        return wetPerf == 0.0;
+                    }
+                    return true;
+                })
+                .toList();
+
+        if (usableCompounds.isEmpty()) {
+            usableCompounds = compounds;
+        }
+
+        double[][][] precomputed = precomputeStintTimes(circuit, usableCompounds, totalLaps,
                 temp, wind, wAngle, aTemp, rain);
 
         List<StrategyResult> all = new ArrayList<>();
 
         // ── 1-STOP ──
-        for (int c1 = 0; c1 < compounds.size(); c1++) {
-            for (int c2 = 0; c2 < compounds.size(); c2++) {
+        for (int c1 = 0; c1 < usableCompounds.size(); c1++) {
+            for (int c2 = 0; c2 < usableCompounds.size(); c2++) {
                 if (c1 == c2) continue;
-                StrategyResult r = best1Stop(circuit, compounds, precomputed, temp, totalLaps,
+                StrategyResult r = best1Stop(circuit, usableCompounds, precomputed, temp, totalLaps,
                         c1, c2, wind, wAngle, aTemp, rain);
                 if (r != null) all.add(r);
             }
@@ -71,13 +87,13 @@ public class StrategyOptimizer {
 
         // ── 2-STOP ──
         Map<String, StrategyResult> best2Stops = new LinkedHashMap<>();
-        for (int c1 = 0; c1 < compounds.size(); c1++) {
-            for (int c2 = 0; c2 < compounds.size(); c2++) {
-                for (int c3 = 0; c3 < compounds.size(); c3++) {
+        for (int c1 = 0; c1 < usableCompounds.size(); c1++) {
+            for (int c2 = 0; c2 < usableCompounds.size(); c2++) {
+                for (int c3 = 0; c3 < usableCompounds.size(); c3++) {
                     boolean twoCompounds = !(c1 == c2 && c2 == c3);
                     if (!twoCompounds) continue;
                     String key = c1 + "-" + c2 + "-" + c3;
-                    StrategyResult r = best2Stop(circuit, compounds, precomputed, temp, totalLaps,
+                    StrategyResult r = best2Stop(circuit, usableCompounds, precomputed, temp, totalLaps,
                             c1, c2, c3, wind, wAngle, aTemp, rain);
                     if (r != null) best2Stops.put(key, r);
                 }
@@ -89,7 +105,7 @@ public class StrategyOptimizer {
                 .forEach(all::add);
 
         // ── 3-STOP ──
-        List<StrategyResult> best3 = best3Stops(circuit, compounds, precomputed, temp, totalLaps,
+        List<StrategyResult> best3 = best3Stops(circuit, usableCompounds, precomputed, temp, totalLaps,
                 wind, wAngle, aTemp, rain);
         all.addAll(best3);
 

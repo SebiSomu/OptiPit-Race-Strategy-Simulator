@@ -36,6 +36,13 @@ public class SimulationService {
     private static final double RAIN_PENALTY_BASE = 4.0;    // max penalty per lap at full intensity
     private static final double RAIN_GRIP_MULTIPLIER = 1.5;  // rain accelerates tyre degradation
 
+    // ── Tyre warmup constants ────────────────────────────────────────────
+    // Cold tyres need 1-2 laps to reach optimal temperature
+    // Softer compounds = slower warmup (more temp-sensitive)
+    // Lap 1: up to 0.8s penalty, Lap 2: up to 0.3s penalty for softs
+    private static final double WARMUP_BASE_PENALTY = 0.5;   // base cold tyre penalty
+    private static final double WARMUP_SENSITIVITY = 20.0; // multiplier for temp sensitivity
+
     /**
      * Calculates effective degradation for a compound at given conditions.
      */
@@ -78,7 +85,23 @@ public class SimulationService {
 
         // ── Tyre degradation (non-linear "cliff") ──
         double degBase = effectiveDegradation(baseDeg, tempSensitivity, trackTemp, rainIntensity, wetPerformance);
-        double wearEffect = (degBase * lapOnTyre) + (degBase * 0.02 * Math.pow(lapOnTyre, 1.8));
+
+        // Sweet spot + degradation model:
+        // Lap 1-2: Warmup phase - minimal degradation (10% of normal)
+        // Lap 3-6: Sweet spot - degradation starts but mild (30% of normal)
+        // Lap 7+: Full degradation with non-linear "cliff"
+        double wearEffect;
+        if (lapOnTyre <= 2) {
+            wearEffect = degBase * lapOnTyre * 0.1;
+        } else if (lapOnTyre <= 6) {
+            wearEffect = degBase * lapOnTyre * 0.3;
+        } else {
+            int effectiveLap = lapOnTyre - 6;
+            double baseWear = degBase * 6 * 0.3;  // Accumulated from first 6 laps
+            wearEffect = baseWear
+                       + (degBase * effectiveLap)           // Linear part
+                       + (degBase * 0.15 * Math.pow(effectiveLap, 2.0)); // Steeper cliff (x² instead of x^1.8)
+        }
 
         // ── Track evolution: track gets faster ──
         double trackBonus = trackEvolution * (globalLap - 1);
@@ -107,6 +130,19 @@ public class SimulationService {
         // Wet tyres on dry track: extra penalty from excessive rubber contact
         double dryPenaltyForWets = (1.0 - rainIntensity) * wetPerformance * 2.5;
 
+        // ── Tyre warmup effect ──
+        // Cold tyres need 1-2 laps to reach optimal temperature
+        // Softer compounds = more temp sensitive = slower warmup
+        double warmupPenalty = 0.0;
+        if (lapOnTyre == 1) {
+            // First lap: cold tyres - penalty based on compound softness
+            // Soft (high baseDeg) = 0.75s penalty, Medium = 0.45s, Hard = 0.25s
+            warmupPenalty = WARMUP_BASE_PENALTY * (1.0 + baseDeg * WARMUP_SENSITIVITY);
+        } else if (lapOnTyre == 2) {
+            // Second lap: partial warmup - about 40% of first lap penalty
+            warmupPenalty = WARMUP_BASE_PENALTY * (1.0 + baseDeg * WARMUP_SENSITIVITY) * 0.4;
+        }
+
         return baseLapTime
                 - paceAdvantage
                 + wearEffect
@@ -115,7 +151,8 @@ public class SimulationService {
                 + windPenalty
                 - airTempBonus
                 + rainPenalty
-                + dryPenaltyForWets;
+                + dryPenaltyForWets
+                + warmupPenalty;
     }
 
     /**
