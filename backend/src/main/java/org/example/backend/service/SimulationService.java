@@ -2,53 +2,78 @@ package org.example.backend.service;
 
 import org.springframework.stereotype.Service;
 
-/**
- * Physics 3.0 — F1 lap time simulation engine.
- *
- * Models:
- *   - Non-linear tyre degradation ("The Cliff")
- *   - Fuel burn effect (non-linear mass reduction)
- *   - Track evolution (rubber laid on track)
- *   - Temperature sensitivity (track + air)
- *   - Wind effect (aerodynamic drag delta)
- *   - Rain effect (wet track penalty on slick tyres)
- *   - Safety Car time discount (stochastic)
- */
 @Service
 public class SimulationService {
 
     private static final double NOMINAL_TEMP = 35.0;
-    private static final double FUEL_BURN_LAPS_EFFECT = 0.060; // s/lap faster as fuel burns
+
+    // Fuel burn constants 
+    private static final double FUEL_EFFECT_PER_KG = 0.03;     
+    private static final double FUEL_CONSUMPTION_PER_LAP = 1.75; 
+    private static final double MAX_FUEL_CAPACITY = 110.0;  
+
+    // ── Track evolution constants ──────────────────────────────────────
+    // Track evolution follows saturation curve: rapid improvement first 5-10 laps,
+    // then plateau as track reaches maximum rubbering.
+    // Formula: maxEvolution * (1 - exp(-saturationRate * lap))
+    private static final double TRACK_EVOLUTION_SATURATION_RATE = 0.35;  // higher = faster plateau
+    private static final double MAX_TRACK_EVOLUTION_BONUS = 0.15;        // max total improvement (s)
+
+    // ── Tyre surface temperature constants ───────────────────────────────
+    private static final double TYRE_TEMP_OPTIMAL = 90.0;           // optimal tyre surface temp (°C)
+    private static final double TYRE_TEMP_BASE = 60.0;              // base temp at start of stint (°C)
+    private static final double TYRE_TEMP_PUSH_FACTOR = 8.0;        // temp increase per lap in PUSH mode
+    private static final double TYRE_TEMP_NORMAL_FACTOR = 3.0;      // temp increase per lap in NORMAL mode
+    private static final double TYRE_TEMP_CONSERVATIVE_FACTOR = 1.0; // temp increase per lap in CONSERVATIVE mode
+    private static final double TYRE_TEMP_COOLING = 2.0;          // natural cooling per lap
+    private static final double TYRE_DEG_TEMP_MULTIPLIER = 0.02;  // degradation increase per °C above optimal
 
     // ── Wind constants ───────────────────────────────────────────────────
-    // At 30 km/h headwind, expect ~0.4s loss per lap on average
     private static final double WIND_DRAG_COEFFICIENT = 0.015; // s per km/h of effective headwind
 
     // ── Air temperature constants ────────────────────────────────────────
-    // Cooler air = denser air = more engine power + more downforce
+    // Cooler air = denser air = more engine power + downforce
     // ~0.008s faster per °C below 30°C reference
     private static final double AIR_TEMP_REFERENCE = 30.0;
     private static final double AIR_TEMP_SENSITIVITY = 0.008;
 
     // ── Rain constants ───────────────────────────────────────────────────
-    // Light rain on slicks: +2-5s per lap. Heavy rain: undriveable on slicks.
-    // rainIntensity: 0.0 (dry) → 1.0 (heavy rain)
     private static final double RAIN_PENALTY_BASE = 4.0;    // max penalty per lap at full intensity
     private static final double RAIN_GRIP_MULTIPLIER = 1.5;  // rain accelerates tyre degradation
 
+    // ── Safety Car / VSC constants ─────────────────────────────────────────
+    // Safety Car neutralizes race - all cars bunch up at reduced pace
+    // Typical SC period: 3-8 laps depending on incident severity
+    private static final double SAFETY_CAR_PACE_PENALTY = 25.0;  // seconds slower per lap under SC
+    private static final double VSC_PACE_PENALTY = 12.0;       // seconds slower per lap under VSC
+    private static final double SAFETY_CAR_PROBABILITY_PER_LAP = 0.02;  // 2% chance per lap for incident
+    private static final double VSC_PROBABILITY_PER_LAP = 0.03;         // 3% chance per lap for minor incident
+
     // ── Tyre warmup constants ────────────────────────────────────────────
-    // Cold tyres need 1-2 laps to reach optimal temperature
-    // Softer compounds = slower warmup (more temp-sensitive)
-    // Lap 1: up to 0.8s penalty, Lap 2: up to 0.3s penalty for softs
     private static final double WARMUP_BASE_PENALTY = 0.5;   // base cold tyre penalty
     private static final double WARMUP_SENSITIVITY = 20.0; // multiplier for temp sensitivity
+
+    // ── Driving modes ────────────────────────────────────────────────────
+    public enum DrivingMode {
+        CONSERVATIVE(0.5, 1.0),   // 50% pace, normal degradation
+        NORMAL(1.0, 1.0),         // 100% pace, normal degradation
+        PUSH(1.02, 1.8);          // 102% pace, 80% more degradation from heat
+
+        final double paceMultiplier;
+        final double degMultiplier;
+
+        DrivingMode(double pace, double deg) {
+            this.paceMultiplier = pace;
+            this.degMultiplier = deg;
+        }
+    }
 
     /**
      * Calculates effective degradation for a compound at given conditions.
      */
     public double effectiveDegradation(double baseDeg, double tempSensitivity,
                                         double trackTemp, double rainIntensity,
-                                        double wetPerformance) {
+                                        double wetPerformance, DrivingMode drivingMode) {
         double tempDelta = (trackTemp - NOMINAL_TEMP) / 10.0;
         double baseDegAtTemp = baseDeg + tempSensitivity * tempDelta;
 
@@ -59,7 +84,7 @@ public class SimulationService {
     }
 
     /**
-     * Calculates the lap time for one lap — Physics 3.0.
+     * Calculates the lap time for one lap — Physics 4.0 with enhanced accuracy.
      *
      * @param baseLapTime     circuit baseline lap time (s)
      * @param baseDeg         compound base degradation at 35°C (s/lap)
@@ -68,12 +93,14 @@ public class SimulationService {
      * @param lapOnTyre       lap number on THIS tyre set (1, 2, 3…)
      * @param globalLap       actual race lap number (1…totalLaps)
      * @param trackTemp       current track surface temperature (°C)
-     * @param trackEvolution  track improvement per lap from rubber (s/lap)
+     * @param trackEvolution  track improvement per lap from rubber (s/lap) - kept for API compatibility
      * @param windSpeed       wind speed in km/h (0 = no wind)
      * @param windAngle       wind angle relative to main straight (0° = headwind, 180° = tailwind)
      * @param airTemp         air temperature in °C
      * @param rainIntensity   0.0 (dry) to 1.0 (heavy rain)
      * @param wetPerformance  0.0 (slick) to 1.0 (full wet) — how well the tyre handles rain
+     * @param drivingMode     driving aggression level (CONSERVATIVE/NORMAL/PUSH)
+     * @param totalRaceLaps   total number of laps in the race (for fuel calculation)
      */
     public double calculateLapTime(double baseLapTime,
             double baseDeg, double tempSensitivity, double paceAdvantage,
@@ -81,37 +108,60 @@ public class SimulationService {
             double trackTemp, double trackEvolution,
             double windSpeed, double windAngle,
             double airTemp, double rainIntensity,
-            double wetPerformance) {
+            double wetPerformance, DrivingMode drivingMode, int totalRaceLaps) {
 
-        // ── Tyre degradation (non-linear "cliff") ──
-        double degBase = effectiveDegradation(baseDeg, tempSensitivity, trackTemp, rainIntensity, wetPerformance);
+        // ── Tyre surface temperature calculation ──
+        // Temperature accumulates based on driving mode, with some natural cooling
+        double tempIncreasePerLap;
+        switch (drivingMode) {
+            case PUSH -> tempIncreasePerLap = TYRE_TEMP_PUSH_FACTOR;
+            case CONSERVATIVE -> tempIncreasePerLap = TYRE_TEMP_CONSERVATIVE_FACTOR;
+            default -> tempIncreasePerLap = TYRE_TEMP_NORMAL_FACTOR; // NORMAL
+        }
+        double currentTyreTemp = TYRE_TEMP_BASE + (tempIncreasePerLap - TYRE_TEMP_COOLING) * lapOnTyre;
+        currentTyreTemp = Math.min(currentTyreTemp, 120.0); // Cap at 120°C (thermal limit)
 
-        // Sweet spot + degradation model:
+        // ── Tyre degradation (non-linear "cliff" with temperature factor) ──
+        double degBase = effectiveDegradation(baseDeg, tempSensitivity, trackTemp, rainIntensity, wetPerformance, drivingMode);
+
+        // Temperature effect: degradation accelerates exponentially above optimal temp
+        double tempAboveOptimal = Math.max(0, currentTyreTemp - TYRE_TEMP_OPTIMAL);
+        double tempDegMultiplier = 1.0 + (TYRE_DEG_TEMP_MULTIPLIER * tempAboveOptimal * drivingMode.degMultiplier);
+
+        // Sweet spot + degradation model with temperature influence:
         // Lap 1-2: Warmup phase - minimal degradation (10% of normal)
         // Lap 3-6: Sweet spot - degradation starts but mild (30% of normal)
-        // Lap 7+: Full degradation with non-linear "cliff"
+        // Lap 7+: Full degradation with non-linear "cliff" and temperature acceleration
         double wearEffect;
         if (lapOnTyre <= 2) {
-            wearEffect = degBase * lapOnTyre * 0.1;
+            wearEffect = degBase * lapOnTyre * 0.1 * tempDegMultiplier;
         } else if (lapOnTyre <= 6) {
-            wearEffect = degBase * lapOnTyre * 0.3;
+            wearEffect = degBase * lapOnTyre * 0.3 * tempDegMultiplier;
         } else {
             int effectiveLap = lapOnTyre - 6;
             double baseWear = degBase * 6 * 0.3;  // Accumulated from first 6 laps
-            wearEffect = baseWear
+            wearEffect = (baseWear
                        + (degBase * effectiveLap)           // Linear part
-                       + (degBase * 0.15 * Math.pow(effectiveLap, 2.0)); // Steeper cliff (x² instead of x^1.8)
+                       + (degBase * 0.15 * Math.pow(effectiveLap, 2.0))) // Steeper cliff (x² instead of x^1.8)
+                       * tempDegMultiplier;
         }
 
-        // ── Track evolution: track gets faster ──
-        double trackBonus = trackEvolution * (globalLap - 1);
+        // ── Track evolution: track gets faster with saturation curve ──
+        // Reality: rapid improvement first 5-10 laps, then plateau
+        // Formula: maxEvolution * (1 - exp(-saturationRate * globalLap))
+        double saturationFactor = 1.0 - Math.exp(-TRACK_EVOLUTION_SATURATION_RATE * globalLap);
+        double trackBonus = MAX_TRACK_EVOLUTION_BONUS * saturationFactor;
         // Rain washes away rubber, reducing track evolution
         if (rainIntensity > 0.3) {
             trackBonus *= (1.0 - rainIntensity * 0.8);
         }
 
-        // ── Fuel effect: car gets faster as fuel is consumed ──
-        double fuelBonus = FUEL_BURN_LAPS_EFFECT * (globalLap - 1);
+        // ── Fuel effect: scalable mass-dependent model ──
+        // Industry standard: ~0.3s per 10kg. With 1.5-2kg/lap consumption = 0.07-0.1s/lap.
+        // Effect is stronger at race start when car is heavier.
+        double remainingFuel = Math.max(0, MAX_FUEL_CAPACITY - (FUEL_CONSUMPTION_PER_LAP * (globalLap - 1)));
+        double fuelPenalty = remainingFuel * FUEL_EFFECT_PER_KG; // s slower due to fuel weight
+        double fuelBonus = (MAX_FUEL_CAPACITY * FUEL_EFFECT_PER_KG) - fuelPenalty; // bonus vs start
 
         // ── Wind effect ──
         // windAngle: 0° = full headwind (worst), 180° = full tailwind (best)
@@ -143,6 +193,10 @@ public class SimulationService {
             warmupPenalty = WARMUP_BASE_PENALTY * (1.0 + baseDeg * WARMUP_SENSITIVITY) * 0.4;
         }
 
+        // ── Driving mode pace effect ──
+        // PUSH mode gives 2% faster lap times but at cost of higher degradation
+        double drivingModePaceBonus = (drivingMode.paceMultiplier - 1.0) * baseLapTime * -1.0;
+
         return baseLapTime
                 - paceAdvantage
                 + wearEffect
@@ -152,11 +206,28 @@ public class SimulationService {
                 - airTempBonus
                 + rainPenalty
                 + dryPenaltyForWets
-                + warmupPenalty;
+                + warmupPenalty
+                - drivingModePaceBonus;
     }
 
     /**
-     * Backward-compatible 8-parameter overload (defaults: no wind, 25°C air, dry).
+     * Backward-compatible overload with default NORMAL driving mode.
+     */
+    public double calculateLapTime(double baseLapTime,
+            double baseDeg, double tempSensitivity, double paceAdvantage,
+            int lapOnTyre, int globalLap,
+            double trackTemp, double trackEvolution,
+            double windSpeed, double windAngle,
+            double airTemp, double rainIntensity,
+            double wetPerformance) {
+        return calculateLapTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
+                lapOnTyre, globalLap, trackTemp, trackEvolution,
+                windSpeed, windAngle, airTemp, rainIntensity, wetPerformance,
+                DrivingMode.NORMAL, globalLap);
+    }
+
+    /**
+     * Backward-compatible 8-parameter overload (defaults: no wind, 25°C air, dry, NORMAL mode).
      */
     public double calculateLapTime(double baseLapTime,
             double baseDeg, double tempSensitivity, double paceAdvantage,
@@ -164,11 +235,29 @@ public class SimulationService {
             double trackTemp, double trackEvolution) {
         return calculateLapTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
                 lapOnTyre, globalLap, trackTemp, trackEvolution,
-                0.0, 0.0, 25.0, 0.0, 0.0);
+                0.0, 0.0, 25.0, 0.0, 0.0, DrivingMode.NORMAL, globalLap);
+    }
+
+    public double calculateStintTime(double baseLapTime,
+            double baseDeg, double tempSensitivity, double paceAdvantage,
+            int stintLaps, int startGlobalLap,
+            double trackTemp, double trackEvolution,
+            double windSpeed, double windAngle,
+            double airTemp, double rainIntensity,
+            double wetPerformance, DrivingMode drivingMode, int totalRaceLaps) {
+        double total = 0;
+        for (int lapOnTyre = 1; lapOnTyre <= stintLaps; lapOnTyre++) {
+            int globalLap = startGlobalLap + lapOnTyre - 1;
+            total += calculateLapTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
+                    lapOnTyre, globalLap, trackTemp, trackEvolution,
+                    windSpeed, windAngle, airTemp, rainIntensity, wetPerformance,
+                    drivingMode, totalRaceLaps);
+        }
+        return total;
     }
 
     /**
-     * Calculates total stint time.
+     * Backward-compatible stint overload with default NORMAL driving mode.
      */
     public double calculateStintTime(double baseLapTime,
             double baseDeg, double tempSensitivity, double paceAdvantage,
@@ -177,14 +266,10 @@ public class SimulationService {
             double windSpeed, double windAngle,
             double airTemp, double rainIntensity,
             double wetPerformance) {
-        double total = 0;
-        for (int lapOnTyre = 1; lapOnTyre <= stintLaps; lapOnTyre++) {
-            int globalLap = startGlobalLap + lapOnTyre - 1;
-            total += calculateLapTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
-                    lapOnTyre, globalLap, trackTemp, trackEvolution,
-                    windSpeed, windAngle, airTemp, rainIntensity, wetPerformance);
-        }
-        return total;
+        return calculateStintTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
+                stintLaps, startGlobalLap, trackTemp, trackEvolution,
+                windSpeed, windAngle, airTemp, rainIntensity, wetPerformance,
+                DrivingMode.NORMAL, startGlobalLap + stintLaps - 1);
     }
 
     /**
@@ -196,6 +281,64 @@ public class SimulationService {
             double trackTemp, double trackEvolution) {
         return calculateStintTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
                 stintLaps, startGlobalLap, trackTemp, trackEvolution,
-                0.0, 0.0, 25.0, 0.0, 0.0);
+                0.0, 0.0, 25.0, 0.0, 0.0, DrivingMode.NORMAL, startGlobalLap + stintLaps - 1);
+    }
+
+    // ── Safety Car / VSC methods ─────────────────────────────────────────
+
+    /**
+     * Safety Car event types that can occur during a race.
+     */
+    public enum SafetyCarEvent {
+        NONE,           // No safety car
+        VSC,            // Virtual Safety Car (minor incident)
+        SAFETY_CAR      // Full Safety Car (major incident)
+    }
+
+    /**
+     * Determines if a Safety Car or VSC event occurs on a given lap.
+     * Uses stochastic probability based on rain and track conditions.
+     *
+     * @param randomSeed seed for reproducible randomness
+     * @param rainIntensity higher rain = higher chance of incidents
+     * @param lapNumber current lap number
+     * @return type of safety car event
+     */
+    public SafetyCarEvent checkSafetyCarEvent(long randomSeed, double rainIntensity, int lapNumber) {
+        // First lap chaos factor - higher chance of incidents
+        double firstLapMultiplier = (lapNumber == 1) ? 2.5 : 1.0;
+
+        // Rain increases incident probability significantly
+        double rainMultiplier = 1.0 + (rainIntensity * 2.0);
+
+        // Calculate effective probabilities
+        double effectiveVscProb = VSC_PROBABILITY_PER_LAP * rainMultiplier * firstLapMultiplier;
+        double effectiveScProb = SAFETY_CAR_PROBABILITY_PER_LAP * rainMultiplier * firstLapMultiplier;
+
+        // Use seeded random for reproducibility
+        java.util.Random random = new java.util.Random(randomSeed + lapNumber);
+        double roll = random.nextDouble();
+
+        if (roll < effectiveScProb) {
+            return SafetyCarEvent.SAFETY_CAR;
+        } else if (roll < effectiveScProb + effectiveVscProb) {
+            return SafetyCarEvent.VSC;
+        }
+        return SafetyCarEvent.NONE;
+    }
+
+    /**
+     * Calculates the time penalty for a lap under Safety Car or VSC conditions.
+     *
+     * @param baseLapTime normal lap time
+     * @param event type of safety car event
+     * @return lap time under safety car conditions
+     */
+    public double applySafetyCarPenalty(double baseLapTime, SafetyCarEvent event) {
+        return switch (event) {
+            case SAFETY_CAR -> baseLapTime + SAFETY_CAR_PACE_PENALTY;
+            case VSC -> baseLapTime + VSC_PACE_PENALTY;
+            case NONE -> baseLapTime;
+        };
     }
 }

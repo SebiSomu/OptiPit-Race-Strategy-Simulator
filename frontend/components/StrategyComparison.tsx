@@ -23,20 +23,24 @@ interface StrategyData {
 interface StrategyComparisonProps {
   strategies: StrategyData[];
   totalLaps: number;
+  selectedIdx?: number;
+  onSelectStrategy?: (idx: number) => void;
 }
 
-export function StrategyComparison({ strategies, totalLaps }: StrategyComparisonProps) {
+export function StrategyComparison({ strategies, totalLaps, selectedIdx = 0, onSelectStrategy }: StrategyComparisonProps) {
   if (!strategies || strategies.length === 0) return null;
 
   return (
     <div className="space-y-4">
       {strategies.map((strategy, idx) => {
         const isOptimal = strategy.deltaToOptimal === 0;
+        const isSelected = selectedIdx === idx;
 
         return (
           <div
             key={idx}
-            className={`strategy-card ${isOptimal ? "optimal" : ""}`}
+            onClick={() => onSelectStrategy?.(idx)}
+            className={`strategy-card ${isOptimal ? "optimal" : ""} ${isSelected ? "selected" : ""} ${onSelectStrategy ? "cursor-pointer" : ""}`}
           >
             {/* Header row */}
             <div className="flex items-center justify-between mb-4">

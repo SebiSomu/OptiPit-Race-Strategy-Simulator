@@ -362,11 +362,30 @@ export function SimulationDashboard({ initialSlug }: { initialSlug?: string }) {
                 <div className="w-2 h-2 rounded-full bg-[var(--f1-red)]" />
                 <h2 className="text-xs font-black uppercase tracking-[0.3em] text-white/60">Optimized Strategy Sets</h2>
               </div>
-              <StrategyComparison strategies={strategies} totalLaps={selectedCircuit?.laps || 0} />
+              <StrategyComparison strategies={strategies} totalLaps={selectedCircuit?.laps || 0} selectedIdx={selectedStrategyIdx} onSelectStrategy={setSelectedStrategyIdx} />
               
               <div className="glass rounded-xl p-6 relative overflow-hidden">
                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-[11px] font-black uppercase tracking-widest text-white/40">Pace Projection · {strategies[selectedStrategyIdx]?.strategyType}</h2>
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-[11px] font-black uppercase tracking-widest text-white/40">Pace Projection · {strategies[selectedStrategyIdx]?.strategyType}</h2>
+                      {/* Strategy Selector */}
+                      <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+                        {strategies.map((strategy, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setSelectedStrategyIdx(idx)}
+                            className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${
+                              selectedStrategyIdx === idx
+                                ? "bg-[var(--f1-red)] text-white"
+                                : "text-white/40 hover:text-white/60"
+                            }`}
+                            title={`${strategy.strategyType} - ${formatF1Time(strategy.totalTime)}`}
+                          >
+                            {idx + 1}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div className="flex gap-4">
                        {uniqueCompounds.map(c => (
                          <div key={c} className="flex items-center gap-1.5">

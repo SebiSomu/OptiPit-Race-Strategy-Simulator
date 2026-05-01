@@ -19,14 +19,14 @@ public class DataInitializer {
         return args -> {
 
             // ── Circuits 2026 Calendar ──────────────────────────────────────
-            upsertCircuit(circuitRepository, "miami", "Miami International Autodrome", 57, 21.0, 92.0, 50.0, 0.010);
+            upsertCircuit(circuitRepository, "miami", "Miami International Autodrome", 57, 20.5, 89.7, 50.0, 0.010);
             upsertCircuit(circuitRepository, "bahrain", "Bahrain (Sakhir)", 57, 22.0, 93.0, 42.0, 0.012);
             upsertCircuit(circuitRepository, "jeddah", "Jeddah Corniche Circuit", 50, 20.0, 90.0, 38.0, 0.008);
             upsertCircuit(circuitRepository, "melbourne", "Melbourne (Albert Park)", 58, 20.0, 78.0, 34.0, 0.011);
             upsertCircuit(circuitRepository, "suzuka", "Suzuka Circuit", 53, 22.0, 91.0, 32.0, 0.014);
             upsertCircuit(circuitRepository, "shanghai", "Shanghai International Circuit", 56, 23.0, 95.0, 35.0, 0.010);
             upsertCircuit(circuitRepository, "monaco", "Monaco (Monte Carlo)", 78, 25.0, 74.0, 30.0, 0.005);
-            upsertCircuit(circuitRepository, "montreal", "Montreal (Gilles Villeneuve)", 70, 18.0, 73.0, 36.0, 0.009);
+            upsertCircuit(circuitRepository, "montreal", "Montreal (Gilles Villeneuve)", 70, 18.0, 73.1, 36.0, 0.009);
             upsertCircuit(circuitRepository, "barcelona", "Barcelona (Catalunya)", 66, 22.0, 76.0, 45.0, 0.013);
             upsertCircuit(circuitRepository, "spielberg", "Red Bull Ring (Spielberg)", 71, 20.0, 68.0, 40.0, 0.010);
             upsertCircuit(circuitRepository, "silverstone", "Silverstone Circuit", 52, 20.0, 89.0, 28.0, 0.015);

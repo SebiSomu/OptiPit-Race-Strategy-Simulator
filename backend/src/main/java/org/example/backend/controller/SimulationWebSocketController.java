@@ -27,10 +27,6 @@ public class SimulationWebSocketController {
     @Autowired
     private TyreCompoundRepository tyreCompoundRepository;
 
-    /**
-     * Starts a live race simulation and sends updates lap-by-lap.
-     * Uses Physics 2.0 (Temperature, Evolution, Fuel).
-     */
     @MessageMapping("/start-simulation")
     public void startSimulation(Map<String, Long> params) {
         Long circuitId = params.get("circuitId");
@@ -44,7 +40,6 @@ public class SimulationWebSocketController {
         new Thread(() -> {
             try {
                 for (int lap = 1; lap <= circuit.getLaps(); lap++) {
-                    // Using the new realistic 8-parameter formula
                     double lapTime = simulationService.calculateLapTime(
                             circuit.getBaseLapTime(),
                             compound.getDegradationCoefficient(),
@@ -62,7 +57,7 @@ public class SimulationWebSocketController {
                             "compound", compound.getName(),
                             "circuit", circuit.getName()));
 
-                    Thread.sleep(300); // Live speed simulation
+                    Thread.sleep(300); 
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
