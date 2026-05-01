@@ -83,12 +83,16 @@ public class StrategyOptimizer {
         List<StrategyResult> all = new ArrayList<>();
 
         // ── 1-STOP ──
-        for (int c1 = 0; c1 < usableCompounds.size(); c1++) {
-            for (int c2 = 0; c2 < usableCompounds.size(); c2++) {
-                if (c1 == c2) continue;
-                StrategyResult r = best1Stop(circuit, usableCompounds, precomputed, temp, totalLaps,
-                        c1, c2, wind, wAngle, aTemp, rain);
-                if (r != null) all.add(r);
+        // 1-stop strategies are forbidden/not viable at Monaco due to overtaking difficulty
+        boolean isMonaco = circuit.getName().toLowerCase().contains("monaco");
+        if (!isMonaco) {
+            for (int c1 = 0; c1 < usableCompounds.size(); c1++) {
+                for (int c2 = 0; c2 < usableCompounds.size(); c2++) {
+                    if (c1 == c2) continue;
+                    StrategyResult r = best1Stop(circuit, usableCompounds, precomputed, temp, totalLaps,
+                            c1, c2, wind, wAngle, aTemp, rain);
+                    if (r != null) all.add(r);
+                }
             }
         }
 
