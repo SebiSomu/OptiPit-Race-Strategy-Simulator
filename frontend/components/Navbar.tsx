@@ -53,6 +53,9 @@ export function Navbar() {
           <NavLink href="/simulation" active={pathname === "/simulation"}>
             Simulation
           </NavLink>
+          <NavLink href="/about" active={pathname === "/about"}>
+            About
+          </NavLink>
         </div>
       </div>
     </nav>

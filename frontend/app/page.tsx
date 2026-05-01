@@ -164,17 +164,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── Footer ────────────────────────────────── */}
-      <footer className="bg-[var(--f1-dark)] border-t border-white/5 py-8">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="text-xs text-white/30 uppercase tracking-wider">
-            OptiPit Strategy Engine © 2026
-          </div>
-          <div className="text-xs text-white/20">
-            Professional Grade Simulation Tool
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
