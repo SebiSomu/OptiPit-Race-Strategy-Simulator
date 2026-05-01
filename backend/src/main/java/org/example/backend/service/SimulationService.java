@@ -57,6 +57,10 @@ public class SimulationService {
     private static final int OPTIMAL_STINT_LENGTH = 12;      // optimal stint length (laps)
     private static final double SHORT_STINT_PENALTY_RATE = 0.05; // +5% penalty per lap under optimal
 
+    // ── Circuit characteristics ThreadLocal for context passing ─────────────
+    private static final ThreadLocal<double[]> CIRCUIT_CONTEXT = new ThreadLocal<>();
+    // Context array indices: 0=asphaltAbrasion, 1=tyreStress, 2=lateral, 3=asphaltGrip
+
     // ── Out-lap penalty (cold tyres after pit stop) ─────────────────────────
     private static final double OUT_LAP_BASE_PENALTY = 0.8;  // base penalty for first lap after pit (s)
     private static final double OUT_LAP_SOFT_FACTOR = 1.125; // Soft = 0.9s (high degradation = more heat needed)
@@ -138,22 +142,26 @@ public class SimulationService {
         double tempAboveOptimal = Math.max(0, currentTyreTemp - TYRE_TEMP_OPTIMAL);
         double tempDegMultiplier = 1.0 + (TYRE_DEG_TEMP_MULTIPLIER * tempAboveOptimal * drivingMode.degMultiplier);
 
+        // ── Circuit characteristics effect on tyre degradation ──
+        // These are passed via ThreadLocal from StrategyOptimizer or default to 1.0
+        double circuitDegMultiplier = getCircuitCharacteristicMultiplier();
+
         // Sweet spot + degradation model with temperature influence:
         // Lap 1-2: Warmup phase - minimal degradation (10% of normal)
         // Lap 3-6: Sweet spot - degradation starts but mild (30% of normal)
         // Lap 7+: Full degradation with non-linear "cliff" and temperature acceleration
         double wearEffect;
         if (lapOnTyre <= 2) {
-            wearEffect = degBase * lapOnTyre * 0.1 * tempDegMultiplier;
+            wearEffect = degBase * lapOnTyre * 0.1 * tempDegMultiplier * circuitDegMultiplier;
         } else if (lapOnTyre <= 6) {
-            wearEffect = degBase * lapOnTyre * 0.3 * tempDegMultiplier;
+            wearEffect = degBase * lapOnTyre * 0.3 * tempDegMultiplier * circuitDegMultiplier;
         } else {
             int effectiveLap = lapOnTyre - 6;
             double baseWear = degBase * 6 * 0.3;  // Accumulated from first 6 laps
             wearEffect = (baseWear
                        + (degBase * effectiveLap)           // Linear part
                        + (degBase * 0.15 * Math.pow(effectiveLap, 2.0))) // Steeper cliff (x² instead of x^1.8)
-                       * tempDegMultiplier;
+                       * tempDegMultiplier * circuitDegMultiplier;
         }
 
         // ── Track evolution: track gets faster with saturation curve ──
@@ -385,5 +393,58 @@ public class SimulationService {
             factor = OUT_LAP_HARD_FACTOR;      // Hard: ~0.5s penalty
         }
         return OUT_LAP_BASE_PENALTY * factor;
+    }
+
+    /**
+     * Sets the circuit characteristics context for the current thread.
+     * This affects tyre degradation calculations in calculateLapTime.
+     *
+     * @param asphaltAbrasion 1-5 scale (1=smooth, 5=high wear)
+     * @param tyreStress 1-5 scale (1=low stress, 5=high stress)
+     * @param lateral 1-5 scale (1=low lateral forces, 5=high)
+     * @param asphaltGrip 1-5 scale (1=low grip, 5=high grip)
+     */
+    public void setCircuitCharacteristics(int asphaltAbrasion, int tyreStress, int lateral, int asphaltGrip) {
+        CIRCUIT_CONTEXT.set(new double[]{
+            asphaltAbrasion / 3.0,  // Normalize to ~0.33-1.67, 1.0 is average
+            tyreStress / 3.0,       // Normalize to ~0.33-1.67
+            lateral / 3.0,          // Normalize to ~0.33-1.67
+            asphaltGrip / 3.0       // Normalize to ~0.33-1.67
+        });
+    }
+
+    /**
+     * Clears the circuit characteristics context.
+     * Call this after strategy calculation to prevent memory leaks.
+     */
+    public void clearCircuitCharacteristics() {
+        CIRCUIT_CONTEXT.remove();
+    }
+
+    /**
+     * Gets the circuit characteristic degradation multiplier.
+     * Combines asphalt abrasion, tyre stress, and lateral forces.
+     *
+     * @return multiplier where 1.0 is average, <1.0 is gentle on tyres, >1.0 is aggressive
+     */
+    private double getCircuitCharacteristicMultiplier() {
+        double[] context = CIRCUIT_CONTEXT.get();
+        if (context == null) {
+            return 1.0; // No circuit context set, use neutral multiplier
+        }
+
+        double asphaltAbrasion = context[0];
+        double tyreStress = context[1];
+        double lateral = context[2];
+
+        // Formula: abrasion has strongest effect (40%), stress (35%), lateral (25%)
+        // Weighted combination gives realistic degradation multiplier
+        double multiplier = (asphaltAbrasion * 0.40)
+                          + (tyreStress * 0.35)
+                          + (lateral * 0.25);
+
+        // Scale so 3,3,3 (all average) gives 1.0 multiplier
+        // Range will be approximately 0.67 (1,1,1) to 1.67 (5,5,5)
+        return multiplier;
     }
 }

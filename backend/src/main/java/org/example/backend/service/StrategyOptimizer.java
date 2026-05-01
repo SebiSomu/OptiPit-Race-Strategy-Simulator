@@ -54,6 +54,13 @@ public class StrategyOptimizer {
         double rain = (rainIntensity != null) ? rainIntensity : 0.0;
         int totalLaps = circuit.getLaps();
 
+        simulationService.setCircuitCharacteristics(
+            circuit.getAsphaltAbrasion() != null ? circuit.getAsphaltAbrasion() : 3,
+            circuit.getTyreStress() != null ? circuit.getTyreStress() : 3,
+            circuit.getLateralForces() != null ? circuit.getLateralForces() : 3,
+            circuit.getAsphaltGrip() != null ? circuit.getAsphaltGrip() : 3
+        );
+
         // Filter compounds based on rain conditions
         List<TyreCompound> usableCompounds = compounds.stream()
                 .filter(c -> {
@@ -117,6 +124,9 @@ public class StrategyOptimizer {
                 s.setDeltaToOptimal(round3(s.getTotalTime() - best));
             }
         }
+
+        // ── Clear circuit characteristics context to prevent memory leaks ──
+        simulationService.clearCircuitCharacteristics();
 
         return all;
     }
