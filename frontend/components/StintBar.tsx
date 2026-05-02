@@ -31,7 +31,8 @@ export function StintBar({ stints, totalLaps, pitStopLaps }: StintBarProps) {
       <div className="relative flex h-12 rounded-lg overflow-hidden border border-white/10">
         {stints.map((stint, idx) => {
           const widthPercent = (stint.lapsDuration / totalLaps) * 100;
-          const colors = compoundColors[stint.compoundName] || compoundColors.Hard;
+          const baseName = stint.compoundName.split(' ')[0];
+          const colors = compoundColors[baseName] || compoundColors.Hard;
 
           return (
             <div

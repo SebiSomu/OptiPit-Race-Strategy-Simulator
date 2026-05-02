@@ -399,12 +399,15 @@ export function SimulationDashboard({ initialSlug }: { initialSlug?: string }) {
                       </div>
                     </div>
                     <div className="flex gap-4">
-                       {uniqueCompounds.map(c => (
-                         <div key={c} className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: compoundChartColors[c] }} />
-                            <span className="text-[10px] font-bold text-white/30">{c}</span>
-                         </div>
-                       ))}
+                       {uniqueCompounds.map(c => {
+                         const baseC = c.split(' ')[0];
+                         return (
+                           <div key={c} className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: compoundChartColors[baseC] || compoundChartColors.Hard }} />
+                              <span className="text-[10px] font-bold text-white/30">{c}</span>
+                           </div>
+                         );
+                       })}
                     </div>
                  </div>
                  <div className="w-full h-[320px]">
@@ -418,9 +421,12 @@ export function SimulationDashboard({ initialSlug }: { initialSlug?: string }) {
                         itemStyle={{ color: "#fff", fontSize: "11px", fontWeight: "bold" }}
                         formatter={(value: number) => [formatF1Time(value), "Lap Time"]}
                       />
-                      {uniqueCompounds.map((comp) => (
-                        <Line key={comp} type="monotone" dataKey={comp} stroke={compoundChartColors[comp]} dot={false} strokeWidth={3} animationDuration={1500} />
-                      ))}
+                      {uniqueCompounds.map((comp) => {
+                        const baseC = comp.split(' ')[0];
+                        return (
+                          <Line key={comp} type="monotone" dataKey={comp} stroke={compoundChartColors[baseC] || compoundChartColors.Hard} dot={false} strokeWidth={3} animationDuration={1500} />
+                        );
+                      })}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>

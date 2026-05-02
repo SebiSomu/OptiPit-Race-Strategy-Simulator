@@ -61,8 +61,44 @@ public class StrategyOptimizer {
             circuit.getAsphaltGrip() != null ? circuit.getAsphaltGrip() : 3
         );
 
+        List<TyreCompound> weekendCompounds = new ArrayList<>();
+        if (circuit.getTyreNomination() != null && circuit.getTyreNomination().contains("-")) {
+            String[] noms = circuit.getTyreNomination().split("-");
+            // Order is Hardest to Softest, e.g. C1-C2-C3 -> Hard=C1, Medium=C2, Soft=C3
+            String[] labels = {"Hard", "Medium", "Soft"};
+            // Relative pace advantages per weekend role (% of baseLapTime):
+            // Hard = baseline (0%), Medium = 0.4% faster, Soft = 0.9% faster
+            // Real F1 gap is ~0.3-0.5s per compound step.
+            // At Spa (104.7s): Med=+0.42s, Soft=+0.94s
+            // At Austria (67.9s): Med=+0.27s, Soft=+0.61s
+            // DEGRADATION stays absolute from C-compound (C5 degrades faster than C1).
+            double[] relativePace = {0.000, 0.004, 0.009};
+            for (int i = 0; i < 3 && i < noms.length; i++) {
+                final String compName = noms[i].trim();
+                final int labelIdx = i;
+                compounds.stream().filter(c -> c.getName().equals(compName)).findFirst().ifPresent(c -> {
+                    TyreCompound mapped = new TyreCompound(c.getId(), labels[labelIdx] + " (" + compName + ")",
+                            c.getDegradationCoefficient(), relativePace[labelIdx],
+                            c.getTempSensitivity(), c.getWetPerformance());
+                    weekendCompounds.add(mapped);
+                });
+            }
+        }
+        
+        // Add wet tyres
+        compounds.stream().filter(c -> c.getName().equals("Intermediate") || c.getName().equals("Wet")).forEach(c -> {
+            TyreCompound mapped = new TyreCompound(c.getId(), c.getName(),
+                    c.getDegradationCoefficient(), c.getInitialGrip(),
+                    c.getTempSensitivity(), c.getWetPerformance());
+            weekendCompounds.add(mapped);
+        });
+
+        if (weekendCompounds.isEmpty()) {
+            weekendCompounds.addAll(compounds);
+        }
+
         // Filter compounds based on rain conditions
-        List<TyreCompound> usableCompounds = compounds.stream()
+        List<TyreCompound> usableCompounds = weekendCompounds.stream()
                 .filter(c -> {
                     double wetPerf = c.getWetPerformance() != null ? c.getWetPerformance() : 0.0;
                     // In dry conditions, exclude wet tyres (Intermediate and Wet)
@@ -74,7 +110,7 @@ public class StrategyOptimizer {
                 .toList();
 
         if (usableCompounds.isEmpty()) {
-            usableCompounds = compounds;
+            usableCompounds = weekendCompounds;
         }
 
         double[][][] precomputed = precomputeStintTimes(circuit, usableCompounds, totalLaps,
