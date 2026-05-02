@@ -83,7 +83,6 @@ public class StrategyOptimizer {
         List<StrategyResult> all = new ArrayList<>();
 
         // ── 1-STOP ──
-        // 1-stop strategies are forbidden/not viable at Monaco due to overtaking difficulty
         boolean isMonaco = circuit.getName().toLowerCase().contains("monaco");
         if (!isMonaco) {
             for (int c1 = 0; c1 < usableCompounds.size(); c1++) {
@@ -129,7 +128,6 @@ public class StrategyOptimizer {
             }
         }
 
-        // ── Clear circuit characteristics context to prevent memory leaks ──
         simulationService.clearCircuitCharacteristics();
 
         return all;
@@ -188,8 +186,7 @@ public class StrategyOptimizer {
     private List<StrategyResult> best3Stops(Circuit circuit, List<TyreCompound> compounds,
                                              double[][][] pre, double temp, int totalLaps,
                                              double wind, double wAngle, double aTemp, double rain) {
-        Map<String, double[]> coarseBest = new LinkedHashMap<>(); // key → {time, pit1, pit2, pit3}
-
+        Map<String, double[]> coarseBest = new LinkedHashMap<>(); 
         for (int c1 = 0; c1 < compounds.size(); c1++)
             for (int c2 = 0; c2 < compounds.size(); c2++)
                 for (int c3 = 0; c3 < compounds.size(); c3++)
@@ -308,9 +305,6 @@ public class StrategyOptimizer {
                         windSpeed, windAngle, airTemp, rainIntensity,
                         c.getWetPerformance() != null ? c.getWetPerformance() : 0.0);
 
-                // ── Out-lap penalty for cold tyres after pit stop ──
-                // First stint (i==0) starts from grid - no penalty
-                // Subsequent stints (i>0) get penalty on their first lap
                 if (i > 0 && lapOnTyre == 1) {
                     double outLapPenalty = simulationService.calculateOutLapPenalty(c.getDegradationCoefficient());
                     lt += outLapPenalty;

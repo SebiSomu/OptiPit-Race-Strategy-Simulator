@@ -8,6 +8,8 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { formatF1Time } from "@/utils/format";
+import CircuitLayout from "@/components/CircuitLayout";
+import { CIRCUITS } from "@/lib/circuitPaths";
 
 const API_BASE = "http://localhost:8080/api";
 
@@ -182,13 +184,23 @@ export function SimulationDashboard({ initialSlug }: { initialSlug?: string }) {
                 <option key={c.id} value={c.id} className="bg-[#111]">{c.name}</option>
               ))}
             </select>
-
+            
             {selectedCircuit && (
               <div className="mt-5 grid grid-cols-2 gap-2 animate-slide-up">
                 <InfoTile label="Total Laps" value={`${selectedCircuit.laps}`} />
+                <InfoTile label="Track Length" value={CIRCUITS[selectedCircuit.slug]?.length || "N/A"} />
                 <InfoTile label="Pit Loss" value={formatF1Time(selectedCircuit.pitStopLoss)} />
                 <InfoTile label="Base Pace" value={formatF1Time(selectedCircuit.baseLapTime)} />
-                <InfoTile label="Nominal" value={`${selectedCircuit.trackTempNominal}°C`} />
+              </div>
+            )}
+            
+            {selectedCircuit && (
+              <div className="mt-6 border-t border-white/5 pt-6 animate-fade-in">
+                <CircuitLayout 
+                  circuitId={selectedCircuit.slug} 
+                  highlightColor="var(--f1-red)"
+                  variant="minimal"
+                />
               </div>
             )}
           </div>
