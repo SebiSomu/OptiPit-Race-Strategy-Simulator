@@ -58,16 +58,8 @@ public class SimulationService {
     private static final double SOFT_DEG_THRESHOLD = 0.044;   // > this = soft compound
     private static final double MEDIUM_DEG_THRESHOLD = 0.028; // > this = medium compound
 
-    // ── Cliff saturation ─────────────────────────────────────────────────
     private static final double CLIFF_SATURATION_LAP = 22.0;
 
-    // ── Circuit characteristics ThreadLocal ──────────────────────────────
-    // Context array indices:
-    //   0 = asphaltAbrasion (normalised /3)
-    //   1 = tyreStress      (normalised /3)
-    //   2 = lateralForces   (normalised /3)
-    //   3 = asphaltGrip     (normalised /3)
-    //   4 = softDegScaling  (raw multiplier, default 1.0)
     private static final ThreadLocal<double[]> CIRCUIT_CONTEXT = new ThreadLocal<>();
 
     // ── Out-lap penalty ──────────────────────────────────────────────────
