@@ -16,29 +16,13 @@ public class DataInitializer {
                                TyreCompoundRepository tyreCompoundRepository) {
         return args -> {
 
-            // ── Circuits ──────────────────────────────────────────────────────
-            //
-            // softDegScaling guidance (last parameter):
-            //   1.0  = neutral (most circuits)
-            //   >1.0 = softs degrade faster (blistering, high traction loads)
-            //   <1.0 = softs last longer than the generic model expects
-            //
-            // Historical Pirelli data used as reference for each circuit.
-            //
-            //                   slug          name                            laps pitLoss trafLoss baseLap  temp   evo
-            //                   trac tyreStr aspGrip brak aspAbr lateral trkEvo dwnf  nom         softDeg
             upsertCircuit(circuitRepository,
                     "miami",    "Miami International Autodrome",          57, 20.5,  10.5,  89.708, 50.0, 0.010,
                     3, 3, 4, 3, 2, 3, 5, 3, "C3-C4-C5",   0.82);
-            // Miami: 1-stop Medium-Hard is canonical (2023 and 2024 GP).
-            // Soft manages well on the well-rubbered Tarmac. 0.82 prevents model
-            // from over-degrading C5 and forcing a 2-stop.
 
             upsertCircuit(circuitRepository,
                     "bahrain", "Bahrain (Sakhir)", 57, 22.0, 5.0, 91.447, 42.0, 0.012,
                     4, 4, 3, 4, 5, 4, 4, 3, "C1-C2-C3", 1.20);
-            // Bahrain: abrasive desert surface stresses all compounds. C3 soft
-            // at Bahrain sees moderate blister risk. 1-stop or 2-stop depending on year.
 
             upsertCircuit(circuitRepository,
                     "jeddah",   "Jeddah Corniche Circuit",                50, 20.0,   9.0,  90.734, 38.0, 0.008,

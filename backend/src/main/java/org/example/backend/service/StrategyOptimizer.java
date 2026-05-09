@@ -1,49 +1,25 @@
 package org.example.backend.service;
 
-import org.example.backend.dto.LapTimeEntry;
-import org.example.backend.dto.StintDetail;
-import org.example.backend.dto.StrategyResult;
-import org.example.backend.model.Circuit;
-import org.example.backend.model.TyreCompound;
+import org.example.backend.dto.*;
+import org.example.backend.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 
-/**
- * Finds optimal F1 race strategies using precomputed stint time tables.
- *
- * Returns ALL viable compound combinations ranked by total race time,
- * so the user sees every realistic option — not just one per stop type.
- *
- * Results include: all 1-stop compound combos, top 2-stop combos, best 3-stop.
- * Each is independent (different compound sequences may rank in any order).
- *
- * Temperature model:
- *   - trackTemp defaults to circuit.trackTempNominal if not supplied by the user.
- *   - The user can override via query param to simulate hotter/cooler conditions.
- *
- * FIX (out-lap penalty):
- *   Out-lap penalty is now baked into the precomputed stint table for startLap > 1.
- *   Previously the table was built without it, so the optimizer chose pit laps on
- *   incorrect times, and buildResult double-counted the penalty on top.
- */
 @Service
 public class StrategyOptimizer {
 
     @Autowired
     private SimulationService simulationService;
 
-    /**
-     * Main entry point: returns all strategies sorted by total race time.
-     */
     public List<StrategyResult> findOptimalStrategies(Circuit circuit,
-                                                      List<TyreCompound> compounds,
-                                                      Double trackTemp,
-                                                      Double windSpeed,
-                                                      Double windAngle,
-                                                      Double airTemp,
-                                                      Double rainIntensity) {
+            List<TyreCompound> compounds,
+            Double trackTemp,
+            Double windSpeed,
+            Double windAngle,
+            Double airTemp,
+            Double rainIntensity) {
         double temp = (trackTemp != null) ? trackTemp : circuit.getTrackTempNominal();
         double wind = (windSpeed != null) ? windSpeed : 0.0;
         double wAngle = (windAngle != null) ? windAngle : 0.0;
@@ -51,8 +27,6 @@ public class StrategyOptimizer {
         double rain = (rainIntensity != null) ? rainIntensity : 0.0;
         int totalLaps = circuit.getLaps();
 
-        // FIX: now also passes softDegScaling so the simulation correctly amplifies
-        // soft compound degradation at circuits like Baku and Las Vegas.
         simulationService.setCircuitCharacteristics(
                 circuit.getAsphaltAbrasion() != null ? circuit.getAsphaltAbrasion() : 3,
                 circuit.getTyreStress() != null ? circuit.getTyreStress() : 3,
@@ -63,8 +37,8 @@ public class StrategyOptimizer {
         List<TyreCompound> weekendCompounds = new ArrayList<>();
         if (circuit.getTyreNomination() != null && circuit.getTyreNomination().contains("-")) {
             String[] noms = circuit.getTyreNomination().split("-");
-            String[] labels = {"Hard", "Medium", "Soft"};
-            double[] relativePace = {0.000, 0.004, 0.009};
+            String[] labels = { "Hard", "Medium", "Soft" };
+            double[] relativePace = { 0.000, 0.004, 0.009 };
             for (int i = 0; i < 3 && i < noms.length; i++) {
                 final String compName = noms[i].trim();
                 final int labelIdx = i;
@@ -77,7 +51,6 @@ public class StrategyOptimizer {
             }
         }
 
-        // Add wet tyres
         compounds.stream()
                 .filter(c -> c.getName().equals("Intermediate") || c.getName().equals("Wet"))
                 .forEach(c -> {
@@ -87,17 +60,20 @@ public class StrategyOptimizer {
                     weekendCompounds.add(mapped);
                 });
 
-        if (weekendCompounds.isEmpty()) weekendCompounds.addAll(compounds);
+        if (weekendCompounds.isEmpty())
+            weekendCompounds.addAll(compounds);
 
         List<TyreCompound> usableCompounds = weekendCompounds.stream()
                 .filter(c -> {
                     double wetPerf = c.getWetPerformance() != null ? c.getWetPerformance() : 0.0;
-                    if (rain == 0.0) return wetPerf == 0.0;
+                    if (rain == 0.0)
+                        return wetPerf == 0.0;
                     return true;
                 })
                 .toList();
 
-        if (usableCompounds.isEmpty()) usableCompounds = weekendCompounds;
+        if (usableCompounds.isEmpty())
+            usableCompounds = weekendCompounds;
 
         double[][][] precomputed = precomputeStintTimes(circuit, usableCompounds, totalLaps,
                 temp, wind, wAngle, aTemp, rain);
@@ -109,10 +85,12 @@ public class StrategyOptimizer {
         if (!isMonaco) {
             for (int c1 = 0; c1 < usableCompounds.size(); c1++) {
                 for (int c2 = 0; c2 < usableCompounds.size(); c2++) {
-                    if (c1 == c2) continue;
+                    if (c1 == c2)
+                        continue;
                     StrategyResult r = best1Stop(circuit, usableCompounds, precomputed, temp, totalLaps,
                             c1, c2, wind, wAngle, aTemp, rain);
-                    if (r != null) all.add(r);
+                    if (r != null)
+                        all.add(r);
                 }
             }
         }
@@ -123,11 +101,13 @@ public class StrategyOptimizer {
             for (int c2 = 0; c2 < usableCompounds.size(); c2++) {
                 for (int c3 = 0; c3 < usableCompounds.size(); c3++) {
                     boolean twoCompounds = !(c1 == c2 && c2 == c3);
-                    if (!twoCompounds) continue;
+                    if (!twoCompounds)
+                        continue;
                     String key = c1 + "-" + c2 + "-" + c3;
                     StrategyResult r = best2Stop(circuit, usableCompounds, precomputed, temp, totalLaps,
                             c1, c2, c3, wind, wAngle, aTemp, rain);
-                    if (r != null) best2Stops.put(key, r);
+                    if (r != null)
+                        best2Stops.put(key, r);
                 }
             }
         }
@@ -155,9 +135,9 @@ public class StrategyOptimizer {
     }
 
     private StrategyResult best1Stop(Circuit circuit, List<TyreCompound> compounds,
-                                     double[][][] pre, double temp, int totalLaps,
-                                     int c1, int c2,
-                                     double wind, double wAngle, double aTemp, double rain) {
+            double[][][] pre, double temp, int totalLaps,
+            int c1, int c2,
+            double wind, double wAngle, double aTemp, double rain) {
         double bestTime = Double.MAX_VALUE;
         int bestPit = -1;
 
@@ -166,22 +146,26 @@ public class StrategyOptimizer {
             int s2Laps = totalLaps - pit;
             double time = pre[c1][1][s1Laps] + pre[c2][pit + 1][s2Laps]
                     + circuit.getPitStopLoss() + circuit.getTrafficLoss();
-            if (time < bestTime) { bestTime = time; bestPit = pit; }
+            if (time < bestTime) {
+                bestTime = time;
+                bestPit = pit;
+            }
         }
-        if (bestPit == -1) return null;
+        if (bestPit == -1)
+            return null;
 
         return buildResult("1-STOP", circuit, compounds, temp, totalLaps,
-                new int[]{c1, c2},
-                new int[]{1, bestPit + 1},
-                new int[]{bestPit, totalLaps},
+                new int[] { c1, c2 },
+                new int[] { 1, bestPit + 1 },
+                new int[] { bestPit, totalLaps },
                 List.of(bestPit), bestTime,
                 wind, wAngle, aTemp, rain);
     }
 
     private StrategyResult best2Stop(Circuit circuit, List<TyreCompound> compounds,
-                                     double[][][] pre, double temp, int totalLaps,
-                                     int c1, int c2, int c3,
-                                     double wind, double wAngle, double aTemp, double rain) {
+            double[][][] pre, double temp, int totalLaps,
+            int c1, int c2, int c3,
+            double wind, double wAngle, double aTemp, double rain) {
         double bestTime = Double.MAX_VALUE;
         int bPit1 = -1, bPit2 = -1;
 
@@ -192,31 +176,37 @@ public class StrategyOptimizer {
                 int s3 = totalLaps - pit2;
                 double time = pre[c1][1][s1] + pre[c2][pit1 + 1][s2] + pre[c3][pit2 + 1][s3]
                         + 2 * (circuit.getPitStopLoss() + circuit.getTrafficLoss());
-                if (time < bestTime) { bestTime = time; bPit1 = pit1; bPit2 = pit2; }
+                if (time < bestTime) {
+                    bestTime = time;
+                    bPit1 = pit1;
+                    bPit2 = pit2;
+                }
             }
         }
-        if (bPit1 == -1) return null;
+        if (bPit1 == -1)
+            return null;
 
         return buildResult("2-STOP", circuit, compounds, temp, totalLaps,
-                new int[]{c1, c2, c3},
-                new int[]{1, bPit1 + 1, bPit2 + 1},
-                new int[]{bPit1, bPit2, totalLaps},
+                new int[] { c1, c2, c3 },
+                new int[] { 1, bPit1 + 1, bPit2 + 1 },
+                new int[] { bPit1, bPit2, totalLaps },
                 List.of(bPit1, bPit2), bestTime,
                 wind, wAngle, aTemp, rain);
     }
 
     private List<StrategyResult> best3Stops(Circuit circuit, List<TyreCompound> compounds,
-                                            double[][][] pre, double temp, int totalLaps,
-                                            double wind, double wAngle, double aTemp, double rain) {
+            double[][][] pre, double temp, int totalLaps,
+            double wind, double wAngle, double aTemp, double rain) {
         Map<String, double[]> coarseBest = new LinkedHashMap<>();
         for (int c1 = 0; c1 < compounds.size(); c1++)
             for (int c2 = 0; c2 < compounds.size(); c2++)
                 for (int c3 = 0; c3 < compounds.size(); c3++)
                     for (int c4 = 0; c4 < compounds.size(); c4++) {
-                        if (c1 == c2 && c2 == c3 && c3 == c4) continue;
+                        if (c1 == c2 && c2 == c3 && c3 == c4)
+                            continue;
                         String key = c1 + "-" + c2 + "-" + c3 + "-" + c4;
                         double best = Double.MAX_VALUE;
-                        double[] state = {best, -1, -1, -1, c1, c2, c3, c4};
+                        double[] state = { best, -1, -1, -1, c1, c2, c3, c4 };
 
                         for (int p1 = 3; p1 <= totalLaps - 9; p1 += 3)
                             for (int p2 = p1 + 3; p2 <= totalLaps - 6; p2 += 3)
@@ -232,7 +222,8 @@ public class StrategyOptimizer {
                                         state[3] = p3;
                                     }
                                 }
-                        if (state[1] >= 0) coarseBest.put(key, state);
+                        if (state[1] >= 0)
+                            coarseBest.put(key, state);
                     }
 
         List<StrategyResult> results = new ArrayList<>();
@@ -248,7 +239,8 @@ public class StrategyOptimizer {
                         for (int p2 = Math.max(p1 + 2, bP2 - 4); p2 <= Math.min(totalLaps - 6, bP2 + 4); p2++)
                             for (int p3 = Math.max(p2 + 2, bP3 - 4); p3 <= Math.min(totalLaps - 2, bP3 + 4); p3++) {
                                 int s1 = p1, s2 = p2 - p1, s3 = p3 - p2, s4 = totalLaps - p3;
-                                if (s1 < 1 || s2 < 1 || s3 < 1 || s4 < 1) continue;
+                                if (s1 < 1 || s2 < 1 || s3 < 1 || s4 < 1)
+                                    continue;
                                 double t = pre[c1][1][s1] + pre[c2][p1 + 1][s2]
                                         + pre[c3][p2 + 1][s3] + pre[c4][p3 + 1][s4]
                                         + 3 * (circuit.getPitStopLoss() + circuit.getTrafficLoss());
@@ -261,36 +253,27 @@ public class StrategyOptimizer {
                             }
 
                     StrategyResult r = buildResult("3-STOP", circuit, compounds, temp, totalLaps,
-                            new int[]{c1, c2, c3, c4},
-                            new int[]{1, bP1 + 1, bP2 + 1, bP3 + 1},
-                            new int[]{bP1, bP2, bP3, totalLaps},
+                            new int[] { c1, c2, c3, c4 },
+                            new int[] { 1, bP1 + 1, bP2 + 1, bP3 + 1 },
+                            new int[] { bP1, bP2, bP3, totalLaps },
                             List.of(bP1, bP2, bP3), bT,
                             wind, wAngle, aTemp, rain);
-                    if (r != null) results.add(r);
+                    if (r != null)
+                        results.add(r);
                 });
         return results;
     }
 
-    /**
-     * Precomputes cumulative stint times for every compound × startLap × numLaps.
-     *
-     * FIX: Out-lap penalty is now included for startLap > 1 (first lap after a pit stop).
-     * Previously the table was built without it, so the optimizer chose pit laps
-     * on incorrect cumulative times, and buildResult added the penalty again — double-counting.
-     *
-     * Now the table is self-consistent with the displayed times in buildResult.
-     */
     private double[][][] precomputeStintTimes(Circuit circuit, List<TyreCompound> compounds,
-                                              int totalLaps, double trackTemp,
-                                              double windSpeed, double windAngle,
-                                              double airTemp, double rainIntensity) {
+            int totalLaps, double trackTemp,
+            double windSpeed, double windAngle,
+            double airTemp, double rainIntensity) {
         int n = compounds.size();
         double[][][] table = new double[n][totalLaps + 2][totalLaps + 1];
 
         for (int ci = 0; ci < n; ci++) {
             TyreCompound c = compounds.get(ci);
             for (int startLap = 1; startLap <= totalLaps; startLap++) {
-                // Out-lap penalty applies to the first lap of every stint except the race start.
                 double outLapPenalty = (startLap > 1)
                         ? simulationService.calculateOutLapPenalty(c.getDegradationCoefficient())
                         : 0.0;
@@ -311,7 +294,8 @@ public class StrategyOptimizer {
                             c.getWetPerformance() != null ? c.getWetPerformance() : 0.0);
 
                     // Apply out-lap penalty on first lap of post-pit stints
-                    if (numLaps == 1) lapTime += outLapPenalty;
+                    if (numLaps == 1)
+                        lapTime += outLapPenalty;
 
                     table[ci][startLap][numLaps] = table[ci][startLap][numLaps - 1] + lapTime;
                 }
@@ -320,19 +304,12 @@ public class StrategyOptimizer {
         return table;
     }
 
-    /**
-     * Builds the final StrategyResult with per-lap detail.
-     *
-     * FIX: Out-lap penalty is no longer added here — it is already baked into
-     * the precomputed table. Removing the double-add makes displayed times
-     * consistent with the optimiser's objective function.
-     */
     private StrategyResult buildResult(String type, Circuit circuit, List<TyreCompound> compounds,
-                                       double trackTemp, int totalLaps,
-                                       int[] compIdxs, int[] starts, int[] ends,
-                                       List<Integer> pitLaps, double totalTime,
-                                       double windSpeed, double windAngle,
-                                       double airTemp, double rainIntensity) {
+            double trackTemp, int totalLaps,
+            int[] compIdxs, int[] starts, int[] ends,
+            List<Integer> pitLaps, double totalTime,
+            double windSpeed, double windAngle,
+            double airTemp, double rainIntensity) {
         List<StintDetail> stints = new ArrayList<>();
         List<LapTimeEntry> lapTimes = new ArrayList<>();
 
@@ -356,9 +333,8 @@ public class StrategyOptimizer {
                         windSpeed, windAngle, airTemp, rainIntensity,
                         c.getWetPerformance() != null ? c.getWetPerformance() : 0.0);
 
-                // Add out-lap penalty only on the first lap of post-pit stints,
-                // consistently with the precomputed table.
-                if (lapOnTyre == 1) lt += outLapPenalty;
+                if (lapOnTyre == 1)
+                    lt += outLapPenalty;
 
                 stintTime += lt;
                 lapTimes.add(new LapTimeEntry(globalLap, round3(lt), c.getName()));
@@ -373,9 +349,9 @@ public class StrategyOptimizer {
         return Math.round(v * 1000.0) / 1000.0;
     }
 
-    public org.example.backend.model.RaceStrategy optimizeOneStop(Circuit circuit,
-                                                                  TyreCompound compound1,
-                                                                  TyreCompound compound2) {
+    public RaceStrategy optimizeOneStop(Circuit circuit,
+            TyreCompound compound1,
+            TyreCompound compound2) {
         int totalLaps = circuit.getLaps();
         double trackTemp = circuit.getTrackTempNominal();
         double bestTime = Double.MAX_VALUE;
@@ -390,7 +366,12 @@ public class StrategyOptimizer {
                     compound2.getDegradationCoefficient(), compound2.getTempSensitivity(), compound2.getInitialGrip(),
                     totalLaps - pit, pit + 1, trackTemp, circuit.getTrackEvolutionPerLap());
             double total = t1 + t2 + circuit.getPitStopLoss();
-            if (total < bestTime) { bestTime = total; bestPitLap = pit; bestC1 = compound1; bestC2 = compound2; }
+            if (total < bestTime) {
+                bestTime = total;
+                bestPitLap = pit;
+                bestC1 = compound1;
+                bestC2 = compound2;
+            }
         }
         for (int pit = 1; pit < totalLaps; pit++) {
             double t1 = simulationService.calculateStintTime(circuit.getBaseLapTime(),
@@ -400,13 +381,18 @@ public class StrategyOptimizer {
                     compound1.getDegradationCoefficient(), compound1.getTempSensitivity(), compound1.getInitialGrip(),
                     totalLaps - pit, pit + 1, trackTemp, circuit.getTrackEvolutionPerLap());
             double total = t1 + t2 + circuit.getPitStopLoss();
-            if (total < bestTime) { bestTime = total; bestPitLap = pit; bestC1 = compound2; bestC2 = compound1; }
+            if (total < bestTime) {
+                bestTime = total;
+                bestPitLap = pit;
+                bestC1 = compound2;
+                bestC2 = compound1;
+            }
         }
 
-        org.example.backend.model.RaceStrategy strategy = new org.example.backend.model.RaceStrategy();
-        List<org.example.backend.model.Stint> stints = new ArrayList<>();
-        stints.add(new org.example.backend.model.Stint(bestC1, 1, bestPitLap));
-        stints.add(new org.example.backend.model.Stint(bestC2, bestPitLap + 1, totalLaps - bestPitLap));
+        RaceStrategy strategy = new RaceStrategy();
+        List<Stint> stints = new ArrayList<>();
+        stints.add(new Stint(bestC1, 1, bestPitLap));
+        stints.add(new Stint(bestC2, bestPitLap + 1, totalLaps - bestPitLap));
         strategy.setStints(stints);
         strategy.setEstimatedTotalTime(bestTime);
         return strategy;

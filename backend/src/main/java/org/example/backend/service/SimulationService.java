@@ -25,50 +25,44 @@ public class SimulationService {
     private static final double TYRE_TEMP_COOLING = 2.0;
     private static final double TYRE_DEG_TEMP_MULTIPLIER = 0.02;
 
-    // ── Wind constants ───────────────────────────────────────────────────
+    // Wind constants
     private static final double WIND_DRAG_COEFFICIENT = 0.015;
 
-    // ── Air temperature constants ────────────────────────────────────────
+    // Air temperature constants
     private static final double AIR_TEMP_REFERENCE = 25.0;
     private static final double AIR_TEMP_SENSITIVITY = 0.025;
 
-    // ── Rain constants ───────────────────────────────────────────────────
+    // Rain constants
     private static final double RAIN_PENALTY_BASE = 4.0;
     private static final double RAIN_GRIP_MULTIPLIER = 1.5;
 
-    // ── Safety Car / VSC constants ─────────────────────────────────────────
+    // Safety Car / VSC constants
     private static final double SAFETY_CAR_PACE_PENALTY = 25.0;
     private static final double VSC_PACE_PENALTY = 12.0;
     private static final double SAFETY_CAR_PROBABILITY_PER_LAP = 0.02;
     private static final double VSC_PROBABILITY_PER_LAP = 0.03;
 
-    // ── Tyre warmup constants ────────────────────────────────────────────
+    // Tyre warmup constants
     private static final double WARMUP_BASE_PENALTY = 0.5;
     private static final double WARMUP_SENSITIVITY = 20.0;
 
-    // ── Short stint penalty constants ────────────────────────────────────
-    // FIX: thresholds recalibrated to match actual compound baseDeg values:
-    //   C5 (soft) = 0.048 → full penalty applies when baseDeg > 0.044
-    //   C4 (medium) = 0.036 → half penalty applies when baseDeg > 0.028
-    //   C3 (hard)  = 0.024 → no penalty
-    // Previously: 0.07 / 0.035 — C5 at 0.058 never exceeded 0.07 so soft
-    // never got its full penalty, making short soft stints artificially cheap.
+    // Short stint penalty constants
     private static final int OPTIMAL_STINT_LENGTH = 12;
     private static final double SHORT_STINT_PENALTY_RATE = 0.05;
-    private static final double SOFT_DEG_THRESHOLD = 0.044;   // > this = soft compound
-    private static final double MEDIUM_DEG_THRESHOLD = 0.028; // > this = medium compound
+    private static final double SOFT_DEG_THRESHOLD = 0.044;
+    private static final double MEDIUM_DEG_THRESHOLD = 0.028;
 
     private static final double CLIFF_SATURATION_LAP = 22.0;
 
     private static final ThreadLocal<double[]> CIRCUIT_CONTEXT = new ThreadLocal<>();
 
-    // ── Out-lap penalty ──────────────────────────────────────────────────
+    // Out-lap penalty
     private static final double OUT_LAP_BASE_PENALTY = 0.8;
     private static final double OUT_LAP_SOFT_FACTOR = 1.125;
     private static final double OUT_LAP_MEDIUM_FACTOR = 0.875;
     private static final double OUT_LAP_HARD_FACTOR = 0.625;
 
-    // ── Driving modes ────────────────────────────────────────────────────
+    // Driving modes
     public enum DrivingMode {
         CONSERVATIVE(0.5, 1.0),
         NORMAL(1.0, 1.0),
@@ -83,13 +77,9 @@ public class SimulationService {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Degradation
-    // ─────────────────────────────────────────────────────────────────────
-
     public double effectiveDegradation(double baseDeg, double tempSensitivity,
-                                       double trackTemp, double rainIntensity,
-                                       double wetPerformance, DrivingMode drivingMode) {
+            double trackTemp, double rainIntensity,
+            double wetPerformance, DrivingMode drivingMode) {
         double tempDelta = (trackTemp - NOMINAL_TEMP) / 10.0;
         double baseDegAtTemp = baseDeg + tempSensitivity * tempDelta;
         double rainEffect = rainIntensity * RAIN_GRIP_MULTIPLIER * (1.0 - wetPerformance);
@@ -97,17 +87,13 @@ public class SimulationService {
         return baseDegAtTemp * rainMultiplier;
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Core lap time calculation
-    // ─────────────────────────────────────────────────────────────────────
-
     public double calculateLapTime(double baseLapTime,
-                                   double baseDeg, double tempSensitivity, double paceAdvantage,
-                                   int lapOnTyre, int globalLap,
-                                   double trackTemp, double trackEvolution,
-                                   double windSpeed, double windAngle,
-                                   double airTemp, double rainIntensity,
-                                   double wetPerformance, DrivingMode drivingMode, int totalRaceLaps) {
+            double baseDeg, double tempSensitivity, double paceAdvantage,
+            int lapOnTyre, int globalLap,
+            double trackTemp, double trackEvolution,
+            double windSpeed, double windAngle,
+            double airTemp, double rainIntensity,
+            double wetPerformance, DrivingMode drivingMode, int totalRaceLaps) {
 
         // ── Tyre surface temperature ──
         double tempIncreasePerLap;
@@ -145,10 +131,6 @@ public class SimulationService {
                     * tempDegMultiplier * circuitDegMultiplier;
         }
 
-        // FIX: Apply circuit-specific soft compound degradation scaling.
-        // This captures blistering risk at circuits like Baku, Suzuka, Las Vegas
-        // that the smooth cliff model cannot represent.
-        // Only applies to the soft compound (highest baseDeg in the weekend set).
         if (baseDeg > SOFT_DEG_THRESHOLD) {
             wearEffect *= getSoftCompoundMultiplier();
         }
@@ -203,39 +185,34 @@ public class SimulationService {
 
     /** Backward-compatible overload — defaults to NORMAL driving mode. */
     public double calculateLapTime(double baseLapTime,
-                                   double baseDeg, double tempSensitivity, double paceAdvantage,
-                                   int lapOnTyre, int globalLap,
-                                   double trackTemp, double trackEvolution,
-                                   double windSpeed, double windAngle,
-                                   double airTemp, double rainIntensity,
-                                   double wetPerformance) {
+            double baseDeg, double tempSensitivity, double paceAdvantage,
+            int lapOnTyre, int globalLap,
+            double trackTemp, double trackEvolution,
+            double windSpeed, double windAngle,
+            double airTemp, double rainIntensity,
+            double wetPerformance) {
         return calculateLapTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
                 lapOnTyre, globalLap, trackTemp, trackEvolution,
                 windSpeed, windAngle, airTemp, rainIntensity, wetPerformance,
                 DrivingMode.NORMAL, globalLap);
     }
 
-    /** Backward-compatible 8-parameter overload (no wind, 25°C air, dry, NORMAL). */
     public double calculateLapTime(double baseLapTime,
-                                   double baseDeg, double tempSensitivity, double paceAdvantage,
-                                   int lapOnTyre, int globalLap,
-                                   double trackTemp, double trackEvolution) {
+            double baseDeg, double tempSensitivity, double paceAdvantage,
+            int lapOnTyre, int globalLap,
+            double trackTemp, double trackEvolution) {
         return calculateLapTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
                 lapOnTyre, globalLap, trackTemp, trackEvolution,
                 0.0, 0.0, 25.0, 0.0, 0.0, DrivingMode.NORMAL, globalLap);
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Stint time calculation
-    // ─────────────────────────────────────────────────────────────────────
-
     public double calculateStintTime(double baseLapTime,
-                                     double baseDeg, double tempSensitivity, double paceAdvantage,
-                                     int stintLaps, int startGlobalLap,
-                                     double trackTemp, double trackEvolution,
-                                     double windSpeed, double windAngle,
-                                     double airTemp, double rainIntensity,
-                                     double wetPerformance, DrivingMode drivingMode, int totalRaceLaps) {
+            double baseDeg, double tempSensitivity, double paceAdvantage,
+            int stintLaps, int startGlobalLap,
+            double trackTemp, double trackEvolution,
+            double windSpeed, double windAngle,
+            double airTemp, double rainIntensity,
+            double wetPerformance, DrivingMode drivingMode, int totalRaceLaps) {
         double total = 0;
         for (int lapOnTyre = 1; lapOnTyre <= stintLaps; lapOnTyre++) {
             int globalLap = startGlobalLap + lapOnTyre - 1;
@@ -245,9 +222,6 @@ public class SimulationService {
                     drivingMode, totalRaceLaps);
         }
 
-        // ── Short stint penalty (recalibrated thresholds) ──
-        // FIX: Thresholds now match actual compound baseDeg values.
-        // See SOFT_DEG_THRESHOLD / MEDIUM_DEG_THRESHOLD constants above.
         double stintLengthPenalty = (stintLaps < OPTIMAL_STINT_LENGTH)
                 ? (1.0 + (OPTIMAL_STINT_LENGTH - stintLaps) * SHORT_STINT_PENALTY_RATE)
                 : 1.0;
@@ -266,12 +240,12 @@ public class SimulationService {
 
     /** Backward-compatible overload — NORMAL driving mode. */
     public double calculateStintTime(double baseLapTime,
-                                     double baseDeg, double tempSensitivity, double paceAdvantage,
-                                     int stintLaps, int startGlobalLap,
-                                     double trackTemp, double trackEvolution,
-                                     double windSpeed, double windAngle,
-                                     double airTemp, double rainIntensity,
-                                     double wetPerformance) {
+            double baseDeg, double tempSensitivity, double paceAdvantage,
+            int stintLaps, int startGlobalLap,
+            double trackTemp, double trackEvolution,
+            double windSpeed, double windAngle,
+            double airTemp, double rainIntensity,
+            double wetPerformance) {
         return calculateStintTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
                 stintLaps, startGlobalLap, trackTemp, trackEvolution,
                 windSpeed, windAngle, airTemp, rainIntensity, wetPerformance,
@@ -280,17 +254,13 @@ public class SimulationService {
 
     /** Backward-compatible 8-parameter overload. */
     public double calculateStintTime(double baseLapTime,
-                                     double baseDeg, double tempSensitivity, double paceAdvantage,
-                                     int stintLaps, int startGlobalLap,
-                                     double trackTemp, double trackEvolution) {
+            double baseDeg, double tempSensitivity, double paceAdvantage,
+            int stintLaps, int startGlobalLap,
+            double trackTemp, double trackEvolution) {
         return calculateStintTime(baseLapTime, baseDeg, tempSensitivity, paceAdvantage,
                 stintLaps, startGlobalLap, trackTemp, trackEvolution,
                 0.0, 0.0, 25.0, 0.0, 0.0, DrivingMode.NORMAL, startGlobalLap + stintLaps - 1);
     }
-
-    // ─────────────────────────────────────────────────────────────────────
-    // Safety Car / VSC
-    // ─────────────────────────────────────────────────────────────────────
 
     public enum SafetyCarEvent {
         NONE, VSC, SAFETY_CAR
@@ -303,8 +273,10 @@ public class SimulationService {
         double effectiveScProb = SAFETY_CAR_PROBABILITY_PER_LAP * rainMultiplier * firstLapMultiplier;
         java.util.Random random = new java.util.Random(randomSeed + lapNumber);
         double roll = random.nextDouble();
-        if (roll < effectiveScProb) return SafetyCarEvent.SAFETY_CAR;
-        else if (roll < effectiveScProb + effectiveVscProb) return SafetyCarEvent.VSC;
+        if (roll < effectiveScProb)
+            return SafetyCarEvent.SAFETY_CAR;
+        else if (roll < effectiveScProb + effectiveVscProb)
+            return SafetyCarEvent.VSC;
         return SafetyCarEvent.NONE;
     }
 
@@ -328,22 +300,8 @@ public class SimulationService {
         return OUT_LAP_BASE_PENALTY * factor;
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Circuit characteristics context
-    // ─────────────────────────────────────────────────────────────────────
-
-    /**
-     * Sets circuit characteristics for the current thread.
-     *
-     * @param asphaltAbrasion  1-5 scale
-     * @param tyreStress       1-5 scale
-     * @param lateral          1-5 scale
-     * @param asphaltGrip      1-5 scale
-     * @param softDegScaling   multiplier applied only to soft compound wear
-     *                         (1.0 = neutral, 1.8 = Baku blistering risk, 0.82 = Miami)
-     */
     public void setCircuitCharacteristics(int asphaltAbrasion, int tyreStress,
-                                          int lateral, int asphaltGrip, double softDegScaling) {
+            int lateral, int asphaltGrip, double softDegScaling) {
         CIRCUIT_CONTEXT.set(new double[] {
                 asphaltAbrasion / 3.0,
                 tyreStress / 3.0,
@@ -355,7 +313,7 @@ public class SimulationService {
 
     /** Backward-compatible overload — softDegScaling defaults to 1.0 (neutral). */
     public void setCircuitCharacteristics(int asphaltAbrasion, int tyreStress,
-                                          int lateral, int asphaltGrip) {
+            int lateral, int asphaltGrip) {
         setCircuitCharacteristics(asphaltAbrasion, tyreStress, lateral, asphaltGrip, 1.0);
     }
 
@@ -365,7 +323,8 @@ public class SimulationService {
 
     private double getCircuitCharacteristicMultiplier() {
         double[] context = CIRCUIT_CONTEXT.get();
-        if (context == null) return 1.0;
+        if (context == null)
+            return 1.0;
         double asphaltAbrasion = context[0];
         double tyreStress = context[1];
         double lateral = context[2];
@@ -378,7 +337,8 @@ public class SimulationService {
      */
     private double getSoftCompoundMultiplier() {
         double[] context = CIRCUIT_CONTEXT.get();
-        if (context == null || context.length < 5) return 1.0;
+        if (context == null || context.length < 5)
+            return 1.0;
         return context[4];
     }
 }
