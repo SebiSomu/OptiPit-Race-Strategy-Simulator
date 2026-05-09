@@ -150,3 +150,9 @@ The `StrategyOptimizer` solves the "optimal pit-stop" problem, which is essentia
 ---
 
 > _"In F1, data is the new currency. This simulator is your wallet."_
+
+---
+
+### Disclaimer
+
+This project is a **fan-made simulation** and is **not** affiliated, associated, authorized, endorsed by, or in any way officially connected with Formula 1, the FIA, Pirelli or any of their subsidiaries or affiliates. The names Formula 1, F1, as well as related names, marks, emblems, and images, are registered trademarks of their respective owners. This tool is for educational and entertainment purposes only.
